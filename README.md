@@ -2,90 +2,81 @@
 
 ## 📌 Introduction
 
+**TID-Recon-Dog** is an advanced deception platform built to **trap**, **track**, and **analyze** malicious intrusions using a powerful blend of honeypots and **local AI agents**.
 
-
-
-TID-Recon-Dog is a modern deception platform designed to detect, trap, and analyze malicious actors in real-time. 
-It simulates vulnerable services like HTTP, SSH, FTP, and PostgreSQL, and is powered by AI agents that respond convincingly to intrusions with realistic system behavior.
-
-
-
-✨ Key Features
-🧠 AI-Powered Deception
-Uses LLMs (like Mistral, GPT, TinyLlama) to generate human-like system responses, fake shell outputs, and error messages.
-
-🛡️ Multi-Protocol Honeypots
-Simulates SSH, HTTP, FTP, and PostgreSQL with realistic banners, endpoints, and commands.
-
-🗂️ Fake File Uploads & Listings
-Accepts uploads and serves fake directories to attackers.
-
-🕵️‍♂️ Intrusion Logging & Enrichment
-Logs attacker IPs, user-agents, commands, and behavior—geo-enriched and stored for analysis.
-
-📡 DMZ / External Deploy Ready
-Designed to run in DMZ zones, edge networks, or Kubernetes clusters.
-
-📈 Modular & Extendable
-Easily plug in new services, models, or deception tactics.
-
-
-
-## Other Features
-
-- **Decoy Services**: HTTP, SSH, FTP, and PostgreSQL honeypots
-    
-- **AI-Powered Responses**: Fake service replies via local AI models (Mistral, GPT4All)
-    
-- **Logging & Analysis**: Captures attacker IPs, authentication attempts, and commands
-    
-- **Dockerized Deployment**: Easy setup via `docker-compose`
-    
-- **Rate Limiting & Obfuscation**: Protect against mass scans & automated attacks
-    
-- **Configurable Services**: Modify environment variables to adjust behavior
+> Simulates real-world services like `SSH`, `HTTP`, `FTP`, and `PostgreSQL`, delivering highly believable responses powered by LLMs (Mistral, TinyLlama, GPT4All).  
+> Logs every move an attacker makes — with zero exposure risk.
 
 ---
 
-## 💡 Use Cases                                      ## 
-Threat intelligence collection                       -TypeScript / Node.js
-                                                        
-Red team / blue team simulations                     -Express / Pino / FTP-Srv
+## ✨ Key Features
 
-Network reconnaissance trap                          -LangChain + Local LLMs (Mistral, TinyLlama, etc.)
+- 🧠 **AI-Powered Deception**  
+  Local LLMs simulate system responses, banners, and output with deceptive realism.
 
-Deception-based intrusion detection                  -Docker / LM Studio / Ollama
+- 🛡️ **Multi-Protocol Honeypots**  
+  Simulates SSH, HTTP, FTP, and PostgreSQL with authentic endpoint behavior.
 
-AI/LLM security research
+- 🗂️ **File Uploads & Listings**  
+  Attackers can interact with fake files and directories.
+
+- 🕵️ **Advanced Logging**  
+  IP, headers, auth attempts, uploaded files, and commands — geo-tagged and enriched.
+
+- 📡 **External Ready (DMZ / Edge)**  
+  Deploy in any DMZ, network boundary, or deceptive edge.
+
+- 🧱 **Modular & AI-Pluggable**  
+  Switch AI models, rotate fake content, and extend new services easily.
+
+---
+
+## 💼 Enterprise & Cloud Use
+
+| Feature                     | Supported |
+|----------------------------|-----------|
+| 🌐 DMZ / Perimeter Deploy  | ✅         |
+| 🐳 Docker / Compose Ready  | ✅         |
+| ☁️ Cloud-Native (K8s)      | ✅         |
+| 🧠 Local LLMs (Offline)    | ✅         |
+| 📊 SIEM Integrations (WIP) | ✅         |
+
+---
+
+## 💡 Use Cases
+
+- Threat Intelligence Gathering  
+- Honeynet Deployments  
+- Red Team / Blue Team Defense  
+- AI/LLM Deception Research  
+- Early-Stage Recon / Fingerprinting  
+- Endpoint Simulation in Wargames
 
 ---
 
 ## 📦 Tech Stack
-TypeScript / Node.js
 
--Express / Pino / FTP-Srv
+- **Node.js / TypeScript**  
+- **LangChain + Mistral, TinyLlama, GPT4All**  
+- **Docker / Kubernetes / LM Studio / Ollama**  
+- **Pino (Logging), Express.js, FTP-Srv**
 
--LangChain + Local LLMs (Mistral, TinyLlama, etc.)
-
--Docker / LM Studio / Ollama
-    
 ---
 
 ## 📂 Project Structure
 
-```
 TID-Recon-Dog/
 │── dist/                 # Compiled TypeScript output
 │── logs/                 # Stored logs from interactions
-│── models/               # AI models (Mistral, GPT4All, OpenAI)
+│── models/               # AI models (Mistral, GPT4All)
 │── src/
 │   ├── services/
 │   │   ├── httpService.ts  # HTTP honeypot
 │   │   ├── sshService.ts   # SSH honeypot
-│   │   ├── ftpService.ts   # FTP honeypot                        } ## Markers Indicate update in new version in v2
-│   │   ├── pgService.ts    # PostgreSQL honeypot                 }
+│   │   ├── ftpService.ts   # FTP honeypot
+│   │   ├── dbService.ts    # PostgreSQL honeypot
 │   ├── ai/
-│   │   ├── aiAgent.ts      # AI response engine                  }
+│   │   ├── aiAgent.ts      # AI response engine
 │   ├── utils/
 │   │   ├── logger.ts       # Logging system
 │   ├── config/
@@ -96,187 +87,157 @@ TID-Recon-Dog/
 │── package.json            # Dependencies
 │── tsconfig.json           # TypeScript settings
 │── README.md               # Documentation
-```
+
+
 
 ---
 
-## 🛠️ Installation
+## 🚀 Getting Started (Local)
 
-### **1️⃣ Clone the Repository**
-
-```
+### 1. Clone & Install
+```bash
 git clone https://github.com/TangoisdownHQ/TID-Recon-Dog.git
 cd TID-Recon-Dog
-```
-
-### **2️⃣ Install Dependencies**
-
-```
 npm install
-```
-
-### **3️⃣ Build the TypeScript Code**
-
-```
+2. Build TypeScript
+bash
+Copy
 npx tsc
-```
-
-### **4️⃣ Start the Services**
-
-```
+3. Run Locally
+bash
+Copy
 node dist/index.js
-```
+🐳 Docker Deployment
+bash
+Copy
+docker-compose up --build -d
+View logs: docker logs -f tid-recon-dog
 
----
+Stop: docker-compose down
 
-## 🐳 Docker Deployment
+☁️ Kubernetes Deployment
+Deploy TID-Recon-Dog as a microservice in your Kubernetes honeynet cluster.
 
-### **1️⃣ Build & Run with Docker Compose**
+1. Create Deployment & Service
+yaml
+Copy
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tid-recon-dog
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tid-recon-dog
+  template:
+    metadata:
+      labels:
+        app: tid-recon-dog
+    spec:
+      containers:
+        - name: honeypot
+          image: yourdockerhub/tid-recon-dog:latest
+          ports:
+            - containerPort: 3000
+            - containerPort: 2222
+            - containerPort: 2121
+            - containerPort: 5432
+2. Expose via Ingress / NodePort
+yaml
+Copy
+apiVersion: v1
+kind: Service
+metadata:
+  name: honeypot-service
+spec:
+  type: NodePort
+  selector:
+    app: tid-recon-dog
+  ports:
+    - port: 3000
+      targetPort: 3000
+      nodePort: 31000
+🌐 Web-Exposed Services
+Service	Port
+HTTP	3000
+SSH	2222
+FTP	2121
+PostgreSQL	5432
+You can expose them via ngrok, reverse proxy, or Kubernetes ingress.
 
-```
-docker-compose up -d --build
-```
+🧠 AI Response Engine
+ts
+Copy
+// src/ai_agents/aiResponder.ts
 
-### **2️⃣ Check Running Containers**
-
-```
-docker ps
-```
-
-### **3️⃣ View Live Logs**
-
-```
-docker logs -f tid-recon-dog
-```
-
-### **4️⃣ Stop & Remove Containers**
-
-```
-docker-compose down
-```
-
----
-
-## 📡 Testing the Honeypot
-
-### **HTTP Service**
-
-```
-curl http://localhost:3000/api/v1/users
-```
-
-### **SSH Service**
-
-```
-ssh honeypot@localhost -p 2222
-```
-
-### **FTP Service**
-
-```
-ftp localhost 21
-```
-
-### **PostgreSQL Service**
-
-```
-psql -h localhost -p 5432 -U honeypot -d honeypot_logs
-```
-
----
-
-## 🧠 AI-Powered Interactions
-
-The honeypot integrates **local AI models** to generate realistic responses. It supports:
-
-- **Mistral 7B**
-    
-- **GPT4All**
-    
-- **LLaMA-based models**
-    
-
-#### **Running the AI Agent**
-
-```
-node dist/ai/aiAgent.js
-```
-
-#### **Modify AI Model in** `**config.ts**`
-
-```
-const AI_MODEL_PATH = "./models/mistral-7b.Q4_0.gguf";
-```
-
----
-
-## 📜 Logs & Analysis
-
-All interactions are logged in `**logs/connections.log**`.
-
-#### **View Logs Live**
-
-```
+- Uses Mistral 7B, TinyLlama, or GPT4All
+- Dynamically responds with fake shell output, DB logs, system banners
+- Never reveals honeypot intent
+🧪 Testing
+bash
+Copy
+curl http://localhost:3000
+curl -X POST http://localhost:3000/upload
+ssh fake@localhost -p 2222
+ftp localhost
+psql -h localhost -p 5432 -U honeypot
+🪵 Logs & Threat Analysis
+bash
+Copy
 tail -f logs/connections.log
-```
+Example:
 
-#### **Example Log Entry**
+yaml
+Copy
+[2025-02-26T02:03:11.621Z] HTTP - IP: 127.0.0.1 - Path: /login - UA: curl/7.85.0
+[2025-02-26T02:03:12.650Z] SSH - IP: 192.168.1.12 - Attempt: root/password123
+📤 AI Model Configuration
+Change model in config.ts or .env:
 
-```
-[2025-02-26T02:03:11.621Z] HTTP - IP: 127.0.0.1 - Path: /login - User-Agent: Mozilla/5.0 - Referrer: none
-[2025-02-26T02:03:12.650Z] SSH - IP: 192.168.1.12 - Authentication attempt: root/password123
-```
+ts
+Copy
+export const AI_MODEL = "mistral-7b-instruct-v0.3"; // or tinyllama, phi2
+To use LM Studio:
 
----
+Set base URL: http://localhost:1234/v1
 
-## 🔥 Advanced Features
+Ensure LM Studio is running
 
-✅ **Rate Limiting & IP Banning**
+Model should support chat-style roles
 
-- Modify `config.ts` to set max requests
-    
+📈 Future Roadmap
+ SMB / RDP Fake Services
 
-✅ **Custom AI Responses**
+ Web Dashboard for Activity
 
-- Extend `aiAgent.ts` for more realistic AI-generated replies
-    
+ SIEM Log Forwarding (Elastic / Splunk)
 
-✅ **Dynamic Route Names**
+ Real-time AI Threat Scoring
 
-- Every HTTP endpoint is randomized
-    
+ Alert Webhooks / Email / Slack
 
-✅ **Session Expiry for SSH & FTP**
+ Decoy Container API tokens, Secrets
 
-- Attackers are automatically logged out after a delay
-    
+🔐 Licensing
+This project is commercially licensed.
 
----
+To request a license key, partnership, or enterprise license: 📩 Email: support@yourdomain.com
 
-## 🎯 Future Plans
+📣 Contact
+🔗 GitHub Issues
 
-✅ **Machine Learning-based Attack Detection** ✅ **Integration with SIEM tools (Splunk, ELK)** ✅ **More Deceptive Services (SMB, RDP)** ✅ **Automated Threat Intelligence Reporting**
+✉️ support@yourdomain.com
 
-✅ **
----
+🧪 Test Portal (coming soon)
 
-## 🤝 Contributing
+⚠️ Legal Disclaimer
+TID-Recon-Dog is for research and legal defense only.
+Do not deploy in environments without proper authorization.
+Use at your own risk. Complies with legal deceptive defense strategies under cybersecurity frameworks.
 
-Want to help improve **TID-Recon-Dog**?
+⭐ Like This Project?
+Star the repo ⭐
+Share with Red Teams 🕵️
+Integrate it into your SOC / honeynet 📊
 
-. Open a pull request
-    
-
----
-
-## 🛡️ Disclaimer
-
-**TID-Recon-Dog is a security research tool.** It is intended for legal use **only** and must be deployed with proper authorization. Unauthorized deployment may violate cybersecurity laws.
-
----
-
-## 📩 Contact & Support
-
-**GitHub Issues:** [Create an issue](https://github.com/yourusername/TID-Recon-Dog/issues) **Email:** support@yourdomain.com
-
----
