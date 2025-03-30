@@ -32,7 +32,7 @@ TID-Recon-Dog/
 │   ├── services/
 │   │   ├── httpService.ts  # HTTP honeypot
 │   │   ├── sshService.ts   # SSH honeypot
-│   │   ├── ftpService.ts   # FTP honeypot                        } ## Markers Indicate update in new versiont in v2
+│   │   ├── ftpService.ts   # FTP honeypot                        } ## Markers Indicate update in new version in v2
 │   │   ├── pgService.ts    # PostgreSQL honeypot                 }
 │   ├── ai/
 │   │   ├── aiAgent.ts      # AI response engine                  }
