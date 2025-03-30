@@ -29,6 +29,11 @@
 - 🧱 **Modular & AI-Pluggable**  
   Switch AI models, rotate fake content, and extend new services easily.
 
+- 🌐 **Web App & Server Integration**
+Seamlessly embed TID-Recon-Dog into existing web applications or public-facing servers to 
+simulate realistic attack surfaces, inject deceptive routes, and monitor intrusion attempts—all 
+without disrupting real services.
+
 ---
 
 ## 💼 Enterprise & Cloud Use
@@ -118,9 +123,9 @@ Deploy TID-Recon-Dog as a microservice in your Kubernetes honeynet cluster.
 
 🌐 Web-Exposed Services
 Service	Port
-HTTP	3000
-SSH	2222
-FTP	2121
+HTTP	      3000
+SSH	        2222
+FTP	        2121
 PostgreSQL	5432
 You can expose them via ngrok, reverse proxy, or Kubernetes ingress.
 
