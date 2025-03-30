@@ -3,6 +3,8 @@
 ## 📌 Introduction
 
 
+
+
 TID-Recon-Dog is a modern deception platform designed to detect, trap, and analyze malicious actors in real-time. 
 It simulates vulnerable services like HTTP, SSH, FTP, and PostgreSQL, and is powered by AI agents that respond convincingly to intrusions with realistic system behavior.
 
@@ -45,7 +47,7 @@ Easily plug in new services, models, or deception tactics.
 
 ---
 
-## 💡 Use Cases                                      ## 📦 Tech Stack
+## 💡 Use Cases                                      ## 
 Threat intelligence collection                       -TypeScript / Node.js
                                                         
 Red team / blue team simulations                     -Express / Pino / FTP-Srv
@@ -55,8 +57,18 @@ Network reconnaissance trap                          -LangChain + Local LLMs (Mi
 Deception-based intrusion detection                  -Docker / LM Studio / Ollama
 
 AI/LLM security research
-    
 
+---
+
+## 📦 Tech Stack
+TypeScript / Node.js
+
+-Express / Pino / FTP-Srv
+
+-LangChain + Local LLMs (Mistral, TinyLlama, etc.)
+
+-Docker / LM Studio / Ollama
+    
 ---
 
 ## 📂 Project Structure
