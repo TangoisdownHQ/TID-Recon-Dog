@@ -2,9 +2,30 @@
 
 ## 📌 Introduction
 
-TID-Recon-Dog is a **deceptive honeypot system** designed to lure and log malicious actors while simulating real-world services such as **HTTP, SSH, FTP, and PostgreSQL**. The system integrates **AI-powered agents** (via LangChain & GPT4All) to generate realistic responses and analyze attack patterns.
+TID-Recon-Dog is a modern deception platform designed to detect, trap, and analyze malicious actors in real-time. It simulates vulnerable services like HTTP, SSH, FTP, and PostgreSQL, and is powered by AI agents that respond convincingly to intrusions with realistic system behavior.
 
-## 🚀 Features
+✨ Key Features
+🧠 AI-Powered Deception
+Uses LLMs (like Mistral, GPT, TinyLlama) to generate human-like system responses, fake shell outputs, and error messages.
+
+🛡️ Multi-Protocol Honeypots
+Simulates SSH, HTTP, FTP, and PostgreSQL with realistic banners, endpoints, and commands.
+
+🗂️ Fake File Uploads & Listings
+Accepts uploads and serves fake directories to attackers.
+
+🕵️‍♂️ Intrusion Logging & Enrichment
+Logs attacker IPs, user-agents, commands, and behavior—geo-enriched and stored for analysis.
+
+📡 DMZ / External Deploy Ready
+Designed to run in DMZ zones, edge networks, or Kubernetes clusters.
+
+📈 Modular & Extendable
+Easily plug in new services, models, or deception tactics.
+
+
+
+## Other Features
 
 - **Decoy Services**: HTTP, SSH, FTP, and PostgreSQL honeypots
     
@@ -17,6 +38,19 @@ TID-Recon-Dog is a **deceptive honeypot system** designed to lure and log malici
 - **Rate Limiting & Obfuscation**: Protect against mass scans & automated attacks
     
 - **Configurable Services**: Modify environment variables to adjust behavior
+
+---
+
+## 💡 Use Cases                                      ## 📦 Tech Stack
+Threat intelligence collection                       -TypeScript / Node.js
+                                                        
+Red team / blue team simulations                     -Express / Pino / FTP-Srv
+
+Network reconnaissance trap                          -LangChain + Local LLMs (Mistral, TinyLlama, etc.)
+
+Deception-based intrusion detection                  -Docker / LM Studio / Ollama
+
+AI/LLM security research
     
 
 ---
@@ -27,7 +61,7 @@ TID-Recon-Dog is a **deceptive honeypot system** designed to lure and log malici
 TID-Recon-Dog/
 │── dist/                 # Compiled TypeScript output
 │── logs/                 # Stored logs from interactions
-│── models/               # AI models (Mistral, GPT4All)
+│── models/               # AI models (Mistral, GPT4All, OpenAI)
 │── src/
 │   ├── services/
 │   │   ├── httpService.ts  # HTTP honeypot
