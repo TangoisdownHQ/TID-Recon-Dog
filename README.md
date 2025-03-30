@@ -100,7 +100,6 @@ TID-Recon-Dog/
 ## 🚀 Getting Started (Local)
 
 ### 1. Clone & Install
-```bash
 git clone https://github.com/TangoisdownHQ/TID-Recon-Dog.git
 cd TID-Recon-Dog
 npm install
