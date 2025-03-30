@@ -64,8 +64,7 @@
 ---
 
 ## 📂 Project Structure
-
-
+```
 TID-Recon-Dog/
 │── dist/                 # Compiled TypeScript output
 │── logs/                 # Stored logs from interactions
