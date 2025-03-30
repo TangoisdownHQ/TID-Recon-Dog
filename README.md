@@ -1,98 +1,232 @@
-Upload Volume Information
+# 🛡️ TID-Recon-Dog: AI-Powered Decoy Honeypot
 
-        ______     __     __     ______
-       /\  == \   /\ \   /\ \   /\  ___\
-        \ \  __<   \ \ \  \ \ \  \ \  __\
-         \ \_\ \_\   \ \_\  \ \_\  \ \_____\
-          \/_/ /_/    \/_/   \/_/   \/_____/
+## 📌 Introduction
 
-    |       T   54    A   41    N   4E    G   47    O   4F    I   49    S   53    
-    |       D   44    O   4F    W   57    N   4E    -   2D
-    |       R   52    E   45    C   43    O   4F    N   4E    -   2D
-    |       D   44    O   4F    G   47
+TID-Recon-Dog is a **deceptive honeypot system** designed to lure and log malicious actors while simulating real-world services such as **HTTP, SSH, FTP, and PostgreSQL**. The system integrates **AI-powered agents** (via LangChain & GPT4All) to generate realistic responses and analyze attack patterns.
 
-    |                  BRAVE NEW WORLD . .  .  .
+## 🚀 Features
 
+- **Decoy Services**: HTTP, SSH, FTP, and PostgreSQL honeypots
+    
+- **AI-Powered Responses**: Fake service replies via local AI models (Mistral, GPT4All)
+    
+- **Logging & Analysis**: Captures attacker IPs, authentication attempts, and commands
+    
+- **Dockerized Deployment**: Easy setup via `docker-compose`
+    
+- **Rate Limiting & Obfuscation**: Protect against mass scans & automated attacks
+    
+- **Configurable Services**: Modify environment variables to adjust behavior
+    
 
-    |               𓏺𓏺 𓎆𓎆𓏺𓏺𓏺𓏺𓏺𓏺 𓆼𓆼 𓎆𓎆 𓏺𓏺𓏺𓏺𓏺
+---
 
+## 📂 Project Structure
 
-  
-    Overview
-    TID-Recon-Dog is an AI-powered honeypot designed to deceive attackers, log their interactions, and simulate fake services.
-    It supports HTTP, SSH, FTP, PostgreSQL, and can be extended for blockchain & space networks.
+```
+TID-Recon-Dog/
+│── dist/                 # Compiled TypeScript output
+│── logs/                 # Stored logs from interactions
+│── models/               # AI models (Mistral, GPT4All)
+│── src/
+│   ├── services/
+│   │   ├── httpService.ts  # HTTP honeypot
+│   │   ├── sshService.ts   # SSH honeypot
+│   │   ├── ftpService.ts   # FTP honeypot                        } ## Markers Indicate update in new versiont in v2
+│   │   ├── pgService.ts    # PostgreSQL honeypot                 }
+│   ├── ai/
+│   │   ├── aiAgent.ts      # AI response engine                  }
+│   ├── utils/
+│   │   ├── logger.ts       # Logging system
+│   ├── config/
+│   │   ├── config.ts       # Configuration file
+│   ├── index.ts            # Entry point
+│── docker-compose.yml      # Docker setup
+│── Dockerfile              # Docker build instructions
+│── package.json            # Dependencies
+│── tsconfig.json           # TypeScript settings
+│── README.md               # Documentation
+```
 
-    This tool is useful for:
-    ✅ Threat Intelligence – Understand attacker behavior
-    ✅ Cyber Deception – Fake services to trick hackers
-    ✅ AI-driven Responses – Uses AI to generate deceptive replies
-    ✅ High-Traffic Environments – Optimized for performance
+---
 
-    ⚡ Features
-    🔹 Realistic Fake Services – SSH, FTP, HTTP, PostgreSQL & more
-    🔹 Dynamic AI Response Engine – Uses LangChain or Local LLMs
-    🔹 Rate Limiting & Obfuscation – Prevent easy detection
-    🔹 Full Logging & Analysis – Tracks all attacker interactions
-    🔹 Modular Design – Easily extend with new services
+## 🛠️ Installation
 
-    🛠 Installation
-    1️⃣ Clone the Repository
-    sh
-    Copy
-    git clone https://github.com/TangoisdownHQ/tidrecondog-LOTL-Satelittecolony-282025.git
-    cd tidrecondog-LOTL-Satelittecolony-282025
-    2️⃣ Install Dependencies
-    sh
-    Copy
-    npm install  
-    3️⃣ Build the Project
-    sh
-    Copy
-    npx tsc
-    4️⃣ Run the Server
-    sh
-    Copy
-    node dist/index.js
-    🔥 Usage
-    Start the HTTP Honeypot
-    After running the server, test it:
+### **1️⃣ Clone the Repository**
 
-    sh
-    Copy
-    curl http://localhost:3000/api/v1/users
-    The request will timeout or return randomized errors.
+```
+git clone https://github.com/TangoisdownHQ/TID-Recon-Dog.git
+cd TID-Recon-Dog
+```
 
-    Start the SSH Honeypot
-    Try connecting via SSH:
+### **2️⃣ Install Dependencies**
 
-    sh
-    Copy
-    ssh attacker@localhost -p 2222
-    It will log the attacker's attempts but always fail authentication.
+```
+npm install
+```
 
-    🔧 Configuration
-    Modify config/config.ts to adjust:
+### **3️⃣ Build the TypeScript Code**
 
-    Port Numbers for HTTP, SSH, FTP, PostgreSQL
-    Logging Behavior (File-based or Cloud-based)
-    AI Response Behavior
-    📜 Logs & Analysis
-    View live logs:
+```
+npx tsc
+```
 
-    sh
-    Copy
-    tail -f logs/connections.log
-    Example Log:
+### **4️⃣ Start the Services**
 
-    yaml
-    Copy
-    [2025-02-26T12:34:56Z] SSH - IP: 192.168.1.100 - Authentication attempt: Username: admin, Password: root
-    🔮 Future Enhancements
-    🚀 AI-powered Deception – Using LangChain & LLMs
-    🛰 Integration with Satellite & Blockchain Networks
-    🎭 More Realistic Service Simulation
+```
+node dist/index.js
+```
 
+---
 
+## 🐳 Docker Deployment
 
+### **1️⃣ Build & Run with Docker Compose**
 
-First upload was [28-2025 everything is working]
+```
+docker-compose up -d --build
+```
+
+### **2️⃣ Check Running Containers**
+
+```
+docker ps
+```
+
+### **3️⃣ View Live Logs**
+
+```
+docker logs -f tid-recon-dog
+```
+
+### **4️⃣ Stop & Remove Containers**
+
+```
+docker-compose down
+```
+
+---
+
+## 📡 Testing the Honeypot
+
+### **HTTP Service**
+
+```
+curl http://localhost:3000/api/v1/users
+```
+
+### **SSH Service**
+
+```
+ssh honeypot@localhost -p 2222
+```
+
+### **FTP Service**
+
+```
+ftp localhost 21
+```
+
+### **PostgreSQL Service**
+
+```
+psql -h localhost -p 5432 -U honeypot -d honeypot_logs
+```
+
+---
+
+## 🧠 AI-Powered Interactions
+
+The honeypot integrates **local AI models** to generate realistic responses. It supports:
+
+- **Mistral 7B**
+    
+- **GPT4All**
+    
+- **LLaMA-based models**
+    
+
+#### **Running the AI Agent**
+
+```
+node dist/ai/aiAgent.js
+```
+
+#### **Modify AI Model in** `**config.ts**`
+
+```
+const AI_MODEL_PATH = "./models/mistral-7b.Q4_0.gguf";
+```
+
+---
+
+## 📜 Logs & Analysis
+
+All interactions are logged in `**logs/connections.log**`.
+
+#### **View Logs Live**
+
+```
+tail -f logs/connections.log
+```
+
+#### **Example Log Entry**
+
+```
+[2025-02-26T02:03:11.621Z] HTTP - IP: 127.0.0.1 - Path: /login - User-Agent: Mozilla/5.0 - Referrer: none
+[2025-02-26T02:03:12.650Z] SSH - IP: 192.168.1.12 - Authentication attempt: root/password123
+```
+
+---
+
+## 🔥 Advanced Features
+
+✅ **Rate Limiting & IP Banning**
+
+- Modify `config.ts` to set max requests
+    
+
+✅ **Custom AI Responses**
+
+- Extend `aiAgent.ts` for more realistic AI-generated replies
+    
+
+✅ **Dynamic Route Names**
+
+- Every HTTP endpoint is randomized
+    
+
+✅ **Session Expiry for SSH & FTP**
+
+- Attackers are automatically logged out after a delay
+    
+
+---
+
+## 🎯 Future Plans
+
+✅ **Machine Learning-based Attack Detection** ✅ **Integration with SIEM tools (Splunk, ELK)** ✅ **More Deceptive Services (SMB, RDP)** ✅ **Automated Threat Intelligence Reporting**
+
+✅ **
+---
+
+## 🤝 Contributing
+
+Want to help improve **TID-Recon-Dog**?
+
+. Open a pull request
+    
+
+---
+
+## 🛡️ Disclaimer
+
+**TID-Recon-Dog is a security research tool.** It is intended for legal use **only** and must be deployed with proper authorization. Unauthorized deployment may violate cybersecurity laws.
+
+---
+
+## 📩 Contact & Support
+
+**GitHub Issues:** [Create an issue](https://github.com/yourusername/TID-Recon-Dog/issues) **Email:** support@yourdomain.com
+
+---
