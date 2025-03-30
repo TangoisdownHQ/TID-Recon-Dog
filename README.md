@@ -122,10 +122,10 @@ Deploy TID-Recon-Dog as a microservice in your Kubernetes honeynet cluster.
 
 🌐 Web-Exposed Services
 Service	Port
-HTTP	      3000
-SSH	        2222
-FTP	        2121
-PostgreSQL	5432
+HTTP	        3000
+SSH	          2222
+FTP	          2121
+PostgreSQL    5432
 You can expose them via ngrok, reverse proxy, or Kubernetes ingress.
 
 🧠 AI Response Engine
