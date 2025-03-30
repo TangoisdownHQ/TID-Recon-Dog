@@ -2,7 +2,11 @@
 
 ## 📌 Introduction
 
-TID-Recon-Dog is a modern deception platform designed to detect, trap, and analyze malicious actors in real-time. It simulates vulnerable services like HTTP, SSH, FTP, and PostgreSQL, and is powered by AI agents that respond convincingly to intrusions with realistic system behavior.
+
+TID-Recon-Dog is a modern deception platform designed to detect, trap, and analyze malicious actors in real-time. 
+It simulates vulnerable services like HTTP, SSH, FTP, and PostgreSQL, and is powered by AI agents that respond convincingly to intrusions with realistic system behavior.
+
+
 
 ✨ Key Features
 🧠 AI-Powered Deception
