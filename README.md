@@ -65,6 +65,7 @@
 
 ## 📂 Project Structure
 
+
 TID-Recon-Dog/
 │── dist/                 # Compiled TypeScript output
 │── logs/                 # Stored logs from interactions
@@ -99,17 +100,14 @@ TID-Recon-Dog/
 git clone https://github.com/TangoisdownHQ/TID-Recon-Dog.git
 cd TID-Recon-Dog
 npm install
+
 2. Build TypeScript
-bash
-Copy
 npx tsc
+
 3. Run Locally
-bash
-Copy
 node dist/index.js
+
 🐳 Docker Deployment
-bash
-Copy
 docker-compose up --build -d
 View logs: docker logs -f tid-recon-dog
 
@@ -117,47 +115,8 @@ Stop: docker-compose down
 
 ☁️ Kubernetes Deployment
 Deploy TID-Recon-Dog as a microservice in your Kubernetes honeynet cluster.
+1. Expose via Ingress / NodePort
 
-1. Create Deployment & Service
-yaml
-Copy
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: tid-recon-dog
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: tid-recon-dog
-  template:
-    metadata:
-      labels:
-        app: tid-recon-dog
-    spec:
-      containers:
-        - name: honeypot
-          image: yourdockerhub/tid-recon-dog:latest
-          ports:
-            - containerPort: 3000
-            - containerPort: 2222
-            - containerPort: 2121
-            - containerPort: 5432
-2. Expose via Ingress / NodePort
-yaml
-Copy
-apiVersion: v1
-kind: Service
-metadata:
-  name: honeypot-service
-spec:
-  type: NodePort
-  selector:
-    app: tid-recon-dog
-  ports:
-    - port: 3000
-      targetPort: 3000
-      nodePort: 31000
 🌐 Web-Exposed Services
 Service	Port
 HTTP	3000
@@ -167,36 +126,25 @@ PostgreSQL	5432
 You can expose them via ngrok, reverse proxy, or Kubernetes ingress.
 
 🧠 AI Response Engine
-ts
-Copy
 // src/ai_agents/aiResponder.ts
 
 - Uses Mistral 7B, TinyLlama, or GPT4All
 - Dynamically responds with fake shell output, DB logs, system banners
 - Never reveals honeypot intent
+
 🧪 Testing
-bash
-Copy
 curl http://localhost:3000
 curl -X POST http://localhost:3000/upload
 ssh fake@localhost -p 2222
 ftp localhost
 psql -h localhost -p 5432 -U honeypot
-🪵 Logs & Threat Analysis
-bash
-Copy
-tail -f logs/connections.log
-Example:
 
-yaml
-Copy
-[2025-02-26T02:03:11.621Z] HTTP - IP: 127.0.0.1 - Path: /login - UA: curl/7.85.0
-[2025-02-26T02:03:12.650Z] SSH - IP: 192.168.1.12 - Attempt: root/password123
+🪵 Logs & Threat Analysis
+tail -f logs/connections.log
+
 📤 AI Model Configuration
 Change model in config.ts or .env:
 
-ts
-Copy
 export const AI_MODEL = "mistral-7b-instruct-v0.3"; // or tinyllama, phi2
 To use LM Studio:
 
@@ -227,7 +175,7 @@ To request a license key, partnership, or enterprise license: 📩 Email: suppor
 📣 Contact
 🔗 GitHub Issues
 
-✉️ support@yourdomain.com
+✉️ tangoisdown@Tutanota.de
 
 🧪 Test Portal (coming soon)
 
