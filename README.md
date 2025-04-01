@@ -3,12 +3,10 @@
 ## 📌 Introduction
 
 **TID-Recon-Dog** is an advanced deception platform built to **trap**, **track**, and **analyze** malicious intrusions using a powerful blend of honeypots and **local AI agents**.
-
------------------------------------------------------------------
 ** We will be introducing TID-RD-D1 Later
 ** An LLM trained specifically for deception & response tactics.
------------------------------------------------------------------
 
+> You can use our AI LLM Model or any other LLM should you choose.
 > Simulates real-world services like `SSH`, `HTTP`, `FTP`, and `PostgreSQL`, delivering highly believable responses powered by LLMs (Mistral, TinyLlama, GPT4All).  
 > Logs every move an attacker makes — with zero exposure risk.
 
