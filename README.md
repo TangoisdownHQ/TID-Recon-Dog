@@ -84,12 +84,12 @@ TID-Recon-Dog/
 │── models/               # AI models (Mistral, GPT4All)
 │── src/
 │   ├── services/
-│   │   ├── httpService.ts  # HTTP honeypot
-│   │   ├── sshService.ts   # SSH honeypot
-│   │   ├── ftpService.ts   # FTP honeypot
-│   │   ├── dbService.ts    # PostgreSQL honeypot
+│   │   ├── httpService.ts      # HTTP honeypot
+│   │   ├── sshService.ts       # SSH honeypot
+│   │   ├── ftpService.ts       # FTP honeypot
+│   │   ├── pgService.ts        # PostgreSQL honeypot
 │   ├── ai/
-│   │   ├── aiAgent.ts      # AI response engine
+│   │   ├── aiResponder.ts      # AI response engine
 │   ├── utils/
 │   │   ├── logger.ts       # Logging system
 │   ├── config/
