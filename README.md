@@ -4,7 +4,7 @@
 
 **TID-Recon-Dog** is an advanced deception platform built to **trap**, **track**, and **analyze** malicious intrusions using a powerful blend of honeypots and **local AI agents**.
 
-Custom AI Model Hosting (Coming Soon)
+**Custom AI Model Hosting (Coming Soon)
 ** We will be introducing RD-AI Later
 ** An LLM trained specifically for deception & response tactics. 
 
@@ -112,17 +112,21 @@ git clone https://github.com/TangoisdownHQ/TID-Recon-Dog.git
 cd TID-Recon-Dog
 npm install
 
-2. Build TypeScript
+### 2. Build TypeScript
 npx tsc
 
-3. Run Locally
+### 3. Run Locally
 node dist/index.js
+
+---
 
 🐳 Docker Deployment
 docker-compose up --build -d
 View logs: docker logs -f tid-recon-dog
 
 Stop: docker-compose down
+
+__________________________________________________________________________________________________
 
 ☁️ Kubernetes Deployment
 Deploy TID-Recon-Dog as a microservice in your Kubernetes honeynet cluster.
@@ -134,6 +138,7 @@ HTTP	           3000
 SSH	            2222
 FTP	            2121
 PostgreSQL      5432
+
 You can expose them via ngrok, reverse proxy, or Kubernetes ingress.
 
 🧠 AI Response Engine
@@ -178,10 +183,15 @@ Model should support chat-style roles
 
  Decoy Container API tokens, Secrets
 
+---
+
 🔐 Licensing
 This project is commercially licensed.
 
-To request a license key, partnership, or enterprise license: 📩 Email: support@yourdomain.com
+To request a license key, partnership, or enterprise license: 📩 Email: tangoisdown@Tutanota.de
+[THE UPLOADED FILES ARE THE BASE CODE FOR THE TOOL. NOT THE FULL CODE]
+
+---
 
 📣 Contact
 🔗 GitHub Issues
