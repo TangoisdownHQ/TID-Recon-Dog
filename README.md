@@ -8,8 +8,8 @@ Custom AI Model Hosting (Coming Soon)
 ** We will be introducing RD-AI Later
 ** An LLM trained specifically for deception & response tactics. 
 
-> 🚧 **We are training and hosting our own fine-tuned LLM for deception.**  
-> ReconDog-AI will provide advanced, evasive, and intelligent responses across all honeypot services — deployable **locally** or via **API**.
+ 🚧 **We are training and hosting our own fine-tuned LLM for deception.**  
+ ReconDog-AI will provide advanced, evasive, and intelligent responses across all honeypot services — deployable **locally** or via **API**.
 
 > You can use our AI LLM Model or any other LLM should you choose.
 > Simulates real-world services like `SSH`, `HTTP`, `FTP`, and `PostgreSQL`, delivering highly believable responses powered by LLMs (Mistral, TinyLlama, GPT4All).  
