@@ -4,6 +4,11 @@
 
 **TID-Recon-Dog** is an advanced deception platform built to **trap**, **track**, and **analyze** malicious intrusions using a powerful blend of honeypots and **local AI agents**.
 
+-----------------------------------------------------------------
+** We will be introducing TID-RD-D1 Later
+** An LLM trained specifically for deception & response tactics.
+-----------------------------------------------------------------
+
 > Simulates real-world services like `SSH`, `HTTP`, `FTP`, and `PostgreSQL`, delivering highly believable responses powered by LLMs (Mistral, TinyLlama, GPT4All).  
 > Logs every move an attacker makes — with zero exposure risk.
 
@@ -122,10 +127,10 @@ Deploy TID-Recon-Dog as a microservice in your Kubernetes honeynet cluster.
 
 🌐 Web-Exposed Services
 Service	Port
-HTTP	        3000
-SSH	          2222
-FTP	          2121
-PostgreSQL    5432
+HTTP	          3000
+SSH	            2222
+FTP	            2121
+PostgreSQL      5432
 You can expose them via ngrok, reverse proxy, or Kubernetes ingress.
 
 🧠 AI Response Engine
