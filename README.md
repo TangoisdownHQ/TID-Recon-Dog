@@ -1,5 +1,18 @@
 # 🛡️ TID-Recon-Dog: AI-Powered Decoy Honeypot
 
+![tidrecondog_github_banner](https://github.com/user-attachments/assets/ad46104a-c10f-4c04-85d4-218fe4047784)
+
+
+
+
+
+
+
+
+
+
+
+
 ## 📌 Introduction
 
 **TID-Recon-Dog** is an advanced deception platform built to **trap**, **track**, and **analyze** malicious intrusions using a powerful blend of honeypots and **local AI agents**.
