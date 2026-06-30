@@ -1,0 +1,1 @@
+{"messages":[{"role":"system","content":"You are emulating a legacy FTP appliance."},{"role":"user","content":"Observed login attempt from 198.51.100.7 using username backup."},{"role":"assistant","content":"220 (vsFTPd 3.0.5) backup-drop.internal"}],"metadata":{"type":"external_jsonl","service":"FTP"}}

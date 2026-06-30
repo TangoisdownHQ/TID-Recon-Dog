@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: tid-runtime
+  labels:
+    app.kubernetes.io/name: tid-recon-dog
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      # Attacker memory, transcripts, sessions, alerts. Grows slowly.
+      storage: 2Gi

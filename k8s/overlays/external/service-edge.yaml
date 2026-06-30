@@ -1,0 +1,44 @@
+# Real external exposure for a cloud deployment. A single LoadBalancer fronts
+# all attacker-facing TCP ports on their real well-known numbers (so the public
+# endpoint looks like a genuine multi-service host). SNMP/UDP gets its own LB
+# because most cloud LBs will not mix TCP and UDP on one Service.
+#
+# On bare-metal / on-prem without a cloud LB, change `type: LoadBalancer` to
+# `type: NodePort` (or install MetalLB).
+apiVersion: v1
+kind: Service
+metadata:
+  name: tid-edge
+  labels:
+    app.kubernetes.io/name: tid-recon-dog
+    app.kubernetes.io/component: edge
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Local
+  selector:
+    app.kubernetes.io/name: tid-recon-dog
+  ports:
+    - { name: ssh, port: 22, targetPort: ssh, protocol: TCP }
+    - { name: http, port: 80, targetPort: http, protocol: TCP }
+    - { name: ftp, port: 21, targetPort: ftp, protocol: TCP }
+    - { name: postgres, port: 5432, targetPort: postgres, protocol: TCP }
+    - { name: rtsp, port: 554, targetPort: rtsp, protocol: TCP }
+    - { name: rdp, port: 3389, targetPort: rdp, protocol: TCP }
+    - { name: telnet, port: 23, targetPort: telnet, protocol: TCP }
+    - { name: modbus, port: 502, targetPort: modbus, protocol: TCP }
+    - { name: smtp, port: 25, targetPort: smtp, protocol: TCP }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tid-edge-snmp
+  labels:
+    app.kubernetes.io/name: tid-recon-dog
+    app.kubernetes.io/component: edge-snmp
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Local
+  selector:
+    app.kubernetes.io/name: tid-recon-dog
+  ports:
+    - { name: snmp, port: 161, targetPort: snmp, protocol: UDP }

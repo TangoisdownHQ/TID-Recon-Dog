@@ -1,0 +1,34 @@
+# deps & build
+node_modules/
+dist/
+
+# runtime data / secrets / artifacts
+runtime/
+logs/
+uploads/
+exports/
+ct/
+*.log
+.env
+host.key*
+
+# ML artifacts (multi-GB models, vendored llama.cpp, nested-repo pipeline) —
+# keep only the docs; the trainer pipeline is its own repo.
+mlops/*
+!mlops/RETRAIN.md
+!mlops/INFERENCE.md
+
+# terraform state
+infra/**/.terraform/
+infra/**/*.tfstate*
+infra/**/*.tfvars
+
+# editor / os
+.DS_Store
+.codex/
+
+# agent/editor state
+.codex
+.claude
+.claude/
+CLAUDE.md

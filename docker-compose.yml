@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  tidbit:
+    build: .
+    image: tid-recon-dog:local
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+      - "2222:2222"
+      - "2121:2121"
+      - "5432:5432"
+      - "8554:8554"
+      - "3389:3389"
+      - "2323:2323"
+      - "1502:1502"
+      - "16100:16100/udp"
+      - "2525:2525"
+      # Operator GUI — bound to localhost on the host so it is not exposed.
+      - "127.0.0.1:9090:9090"
+    environment:
+      - HTTP_PORT=3000
+      - SSH_PORT=2222
+      - FTP_PORT=2121
+      - POSTGRES_PORT=5432
+      - RTSP_PORT=8554
+      - RDP_PORT=3389
+      - TELNET_PORT=2323
+      - MODBUS_PORT=1502
+      - SNMP_PORT=16100
+      - SMTP_PORT=2525
+      # Bind operator inside the container to all interfaces so the published
+      # 127.0.0.1:9090 host port can reach it. Set OPERATOR_TOKEN to pin a token.
+      - OPERATOR_HOST=0.0.0.0
+      - OPERATOR_PORT=9090
+      # - OPERATOR_TOKEN=change-me
+    volumes:
+      - ./runtime:/app/runtime
+      - ./logs:/app/logs
+      - ./uploads:/app/uploads
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9090/healthz >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

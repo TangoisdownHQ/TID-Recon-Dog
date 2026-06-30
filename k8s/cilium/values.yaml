@@ -1,0 +1,26 @@
+# Cilium helm values for enforcing the TID-Recon-Dog NetworkPolicy.
+# Install:
+#   helm repo add cilium https://helm.cilium.io/ && helm repo update
+#   helm install cilium cilium/cilium --version 1.19.4 \
+#     --namespace kube-system -f k8s/cilium/values.yaml
+#
+# Cilium natively enforces standard Kubernetes NetworkPolicy objects, so the
+# existing k8s/base/networkpolicy.yaml works as-is — no Cilium-specific CRD
+# required. (An optional CiliumNetworkPolicy is provided for richer L3/L4 rules.)
+
+# Default ("default-deny" is opt-in per-namespace via NetworkPolicy, matching
+# standard k8s semantics — a namespace with no policy stays open).
+policyEnforcementMode: default
+
+# Lightweight settings suited to kind / single-node clusters.
+kubeProxyReplacement: false
+operator:
+  replicas: 1
+ipam:
+  mode: kubernetes
+
+# Hubble (flow visibility) is handy for confirming policy drops but optional.
+hubble:
+  enabled: true
+  relay:
+    enabled: false

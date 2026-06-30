@@ -1,0 +1,37 @@
+# OPTIONAL Cilium-native equivalent of k8s/base/networkpolicy.yaml.
+# You do NOT need this if you applied the standard NetworkPolicy — Cilium
+# enforces that already. Use this only if you prefer Cilium CRDs / want to
+# extend with L7 rules later. Apply with: kubectl apply -f this-file.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: tid-operator-isolation
+  namespace: tid-recon-dog
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: tid-recon-dog
+  ingress:
+    # Decoy services: reachable from anywhere (that is the honeypot's job).
+    - toPorts:
+        - ports:
+            - { port: "3000", protocol: TCP }
+            - { port: "2222", protocol: TCP }
+            - { port: "2121", protocol: TCP }
+            - { port: "5432", protocol: TCP }
+            - { port: "8554", protocol: TCP }
+            - { port: "3389", protocol: TCP }
+            - { port: "2323", protocol: TCP }
+            - { port: "1502", protocol: TCP }
+            - { port: "16100", protocol: UDP }
+            - { port: "2525", protocol: TCP }
+    # Operator metrics plane (9090): only from the same namespace or a
+    # namespace labelled tid-monitoring=true.
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: tid-recon-dog
+        - matchLabels:
+            tid-monitoring: "true"
+      toPorts:
+        - ports:
+            - { port: "9090", protocol: TCP }

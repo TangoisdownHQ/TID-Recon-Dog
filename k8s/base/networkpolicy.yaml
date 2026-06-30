@@ -1,0 +1,41 @@
+# Defense-in-depth for the operator plane. The decoy ports stay open to the
+# world; the operator metrics port (9090) is only reachable from inside the
+# cluster (same namespace + a namespace labelled `tid-monitoring: "true"`).
+#
+# Requires a NetworkPolicy-enforcing CNI (Calico, Cilium, etc.). Harmless if the
+# CNI does not enforce it. NOTE: `kubectl port-forward` to svc/tid-operator may
+# need the node CIDR allowed depending on your CNI — if it stops working, reach
+# the GUI from an in-namespace debug pod or an authenticated Ingress instead.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: tid-operator-isolation
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: tid-recon-dog
+  policyTypes:
+    - Ingress
+  ingress:
+    # Decoy services: open to everyone (that is the point of a honeypot).
+    - ports:
+        - { port: 3000, protocol: TCP }
+        - { port: 2222, protocol: TCP }
+        - { port: 2121, protocol: TCP }
+        - { port: 5432, protocol: TCP }
+        - { port: 8554, protocol: TCP }
+        - { port: 3389, protocol: TCP }
+        - { port: 2323, protocol: TCP }
+        - { port: 1502, protocol: TCP }
+        - { port: 16100, protocol: UDP }
+        - { port: 2525, protocol: TCP }
+    # Operator plane: in-cluster only.
+    - ports:
+        - { port: 9090, protocol: TCP }
+      from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: tid-recon-dog
+        - namespaceSelector:
+            matchLabels:
+              tid-monitoring: "true"

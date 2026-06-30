@@ -1,0 +1,68 @@
+# EKS retrain CronJob — runs every 8 hours on a GPU node pool. This is the
+# cloud equivalent of the local systemd timer; the honeypot Deployment itself
+# never trains (it just produces transcripts onto shared storage).
+#
+# Prerequisites on EKS (see infra/aws/README.md):
+#   - a GPU node group (e.g. g5.xlarge) with the NVIDIA device plugin
+#   - a trainer image: the tidrc-ml-pipeline + .venv-train + base model (or pull
+#     the base model + transcripts from S3 at start). Build/push separately.
+#   - transcripts shared from the honeypot: either an RWX volume (EFS) mounted at
+#     /data/runtime, or an init step that `aws s3 sync`s them down.
+#
+# On-demand ("retrain at will") on k8s:
+#   kubectl -n tid-recon-dog create job --from=cronjob/tidrc-retrain retrain-manual-$(date +%s)
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: tidrc-retrain
+  namespace: tid-recon-dog
+  labels:
+    app.kubernetes.io/name: tid-recon-dog
+    app.kubernetes.io/component: retrain
+spec:
+  schedule: "0 */8 * * *"        # every 8 hours
+  concurrencyPolicy: Forbid       # never run two trainers at once
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 21600  # 6h cap
+      template:
+        spec:
+          restartPolicy: Never
+          nodeSelector:
+            # match your GPU node group label
+            node.kubernetes.io/instance-type: g5.xlarge
+          tolerations:
+            - key: nvidia.com/gpu
+              operator: Exists
+              effect: NoSchedule
+          containers:
+            - name: trainer
+              # Build + push this separately (pipeline + venv + base model / S3 sync).
+              image: tid-recon-dog-trainer:latest
+              imagePullPolicy: IfNotPresent
+              command: ["bash", "scripts/auto_retrain.sh"]
+              env:
+                - { name: RUNTIME_DIR, value: /data/runtime }
+                - { name: RETRAIN_MIN_NEW, value: "10" }
+                - { name: RETRAIN_BACKEND, value: "qlora" }
+                - { name: PIPELINE_BASE_MODEL, value: /models/Qwen3-4-Base }
+              resources:
+                limits:
+                  nvidia.com/gpu: "1"
+                  memory: 24Gi
+                requests:
+                  cpu: "2"
+                  memory: 16Gi
+              volumeMounts:
+                - { name: runtime, mountPath: /data/runtime }   # shared honeypot transcripts (EFS/RWX)
+                - { name: models, mountPath: /models }           # base model + adapters
+          volumes:
+            - name: runtime
+              persistentVolumeClaim:
+                claimName: tid-runtime-shared   # an EFS-backed RWX PVC
+            - name: models
+              persistentVolumeClaim:
+                claimName: tid-models

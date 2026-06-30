@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tid-recon-dog
+  labels:
+    app.kubernetes.io/name: tid-recon-dog
+    app.kubernetes.io/part-of: tid-recon-dog

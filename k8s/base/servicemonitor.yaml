@@ -1,0 +1,27 @@
+# OPTIONAL: scrape the operator /metrics endpoint with the Prometheus Operator.
+# Not included in kustomization.yaml because it needs the monitoring.coreos.com
+# CRDs. Apply separately once Prometheus Operator is installed:
+#   kubectl apply -f k8s/base/servicemonitor.yaml
+#
+# The pod also carries prometheus.io/scrape annotations, so a plain Prometheus
+# with kubernetes_sd pod scraping works without this CRD.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: tid-operator
+  namespace: tid-recon-dog
+  labels:
+    app.kubernetes.io/name: tid-recon-dog
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: operator
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+      # The operator API requires a bearer token; point Prometheus at the secret.
+      authorization:
+        credentials:
+          name: tid-secrets
+          key: OPERATOR_TOKEN

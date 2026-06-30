@@ -1,0 +1,76 @@
+#!/bin/bash
+# Model host bootstrap. Downloads the GGUF(s) from S3 and serves the fine-tuned
+# model (base + LoRA adapter) via Ollama on an OpenAI-compatible API. Designed to
+# survive stop/start: artifacts + Ollama model cache live on the root EBS volume,
+# and a systemd timer re-verifies the model is loaded on every boot.
+set -uxo pipefail
+
+mkdir -p /opt/models
+
+# Ollama (detects the NVIDIA GPU present on the DLAMI automatically).
+if ! command -v ollama >/dev/null 2>&1; then
+  curl -fsSL https://ollama.com/install.sh | sh
+fi
+
+# Bind Ollama to all interfaces (the security group restricts it to the honeypot).
+mkdir -p /etc/systemd/system/ollama.service.d
+cat >/etc/systemd/system/ollama.service.d/override.conf <<EOF
+[Service]
+Environment=OLLAMA_HOST=0.0.0.0:${model_port}
+EOF
+systemctl daemon-reload
+systemctl enable --now ollama
+
+# Idempotent loader: fetch artifacts (if missing) and register the model.
+cat >/usr/local/bin/tid-model-load.sh <<'LOAD'
+#!/bin/bash
+set -uxo pipefail
+B="/opt/models"
+aws s3 cp "s3://${bucket}/${base_gguf_key}" "$B/base.gguf" --no-progress --region ${region} || exit 0
+ADAPTER_LINE=""
+if [ -n "${adapter_gguf_key}" ]; then
+  if aws s3 cp "s3://${bucket}/${adapter_gguf_key}" "$B/adapter.gguf" --no-progress --region ${region}; then
+    ADAPTER_LINE="ADAPTER $B/adapter.gguf"
+  fi
+fi
+cat >"$B/Modelfile" <<MF
+FROM $B/base.gguf
+$ADAPTER_LINE
+PARAMETER temperature 0.4
+PARAMETER stop "<|im_end|>"
+TEMPLATE """{{ if .System }}<|im_start|>system
+{{ .System }}<|im_end|>
+{{ end }}{{ if .Prompt }}<|im_start|>user
+{{ .Prompt }}<|im_end|>
+{{ end }}<|im_start|>assistant
+{{ .Response }}<|im_end|>"""
+MF
+# (Re)create only if the model isn't already registered.
+if ! ollama list 2>/dev/null | grep -q "^${model_name}"; then
+  ollama create ${model_name} -f "$B/Modelfile"
+fi
+LOAD
+chmod +x /usr/local/bin/tid-model-load.sh
+
+cat >/etc/systemd/system/tid-model-load.service <<'UNIT'
+[Unit]
+Description=Load TID honeypot model into Ollama
+After=ollama.service network-online.target
+Requires=ollama.service
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/tid-model-load.sh
+UNIT
+
+cat >/etc/systemd/system/tid-model-load.timer <<'UNIT'
+[Unit]
+Description=Ensure TID model is loaded
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=120s
+[Install]
+WantedBy=timers.target
+UNIT
+
+systemctl daemon-reload
+systemctl enable --now tid-model-load.timer

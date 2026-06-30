@@ -1,0 +1,7 @@
+{"id":"rtsp_describe_auth","response":"RTSP/1.0 401 Unauthorized\r\nCSeq: 2\r\nWWW-Authenticate: Digest realm=\"Camera Stream Relay\", nonce=\"abc123\"\r\nServer: CamWatch Media Relay/4.8.12\r\n"}
+{"id":"rdp_preauth_banner","response":"Cookie: mstshash=ADMIN-JUMP\r\n"}
+{"id":"telnet_login_prompt","response":"Legacy Field Gateway (field-gw-legacy)\r\nFieldGateway login:"}
+{"id":"modbus_status","response":"MBTCP unit 1 online registers=2"}
+{"id":"ssh_banner","response":"SSH-2.0-OpenSSH_8.9p1 Ubuntu-3ubuntu0.10"}
+{"id":"ftp_banner","response":"220 (vsFTPd 3.0.5)"}
+{"id":"postgres_auth_failure","response":"FATAL: password authentication failed for user \"postgres\""}

@@ -1,0 +1,79 @@
+#!/bin/bash
+set -eux
+
+# --- Docker + compose plugin ------------------------------------------------
+dnf update -y
+dnf install -y docker
+systemctl enable --now docker
+mkdir -p /usr/libexec/docker/cli-plugins
+curl -sSL https://github.com/docker/compose/releases/download/v2.29.7/docker-compose-linux-x86_64 \
+  -o /usr/libexec/docker/cli-plugins/docker-compose
+chmod +x /usr/libexec/docker/cli-plugins/docker-compose
+
+# --- Free port 22 for the fake SSH; move the host's real sshd to 2200 -------
+# (Primary admin access is AWS SSM Session Manager, which needs no inbound port.)
+sed -i 's/^#\?Port .*/Port 2200/' /etc/ssh/sshd_config
+systemctl restart sshd || true
+
+# --- Compose file: real well-known ports -> container ports -----------------
+cat >/opt/tid-compose.yml <<'YML'
+services:
+  honeypot:
+    image: ${image_uri}
+    restart: unless-stopped
+    ports:
+%{ for p in decoy_ports_tcp ~}
+      - "${p.host}:${p.container}"
+%{ endfor ~}
+      - "161:16100/udp"
+      - "127.0.0.1:9090:9090"   # operator plane: localhost only, reach via SSM
+    environment:
+      - OPERATOR_HOST=0.0.0.0
+      - OPERATOR_PORT=9090
+%{ if ai_model_url != "" ~}
+      - AI_MODEL_URL=${ai_model_url}
+      - AI_MODEL=${ai_model}
+%{ endif ~}
+    volumes:
+      - tid-runtime:/app/runtime
+      - tid-logs:/app/logs
+      - tid-uploads:/app/uploads
+volumes:
+  tid-runtime:
+  tid-logs:
+  tid-uploads:
+YML
+
+# --- Start script (idempotent; self-heals; waits for the image to be pushed) -
+cat >/usr/local/bin/tid-start.sh <<'SH'
+#!/bin/bash
+set -e
+aws ecr get-login-password --region ${region} | docker login --username AWS --password-stdin ${registry}
+docker compose -f /opt/tid-compose.yml pull
+docker compose -f /opt/tid-compose.yml up -d
+SH
+chmod +x /usr/local/bin/tid-start.sh
+
+cat >/etc/systemd/system/tid.service <<'UNIT'
+[Unit]
+Description=TID-Recon-Dog honeypot
+After=docker.service
+Requires=docker.service
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/tid-start.sh
+UNIT
+
+# Retry every minute until the ECR image exists, then keep self-healing.
+cat >/etc/systemd/system/tid.timer <<'UNIT'
+[Unit]
+Description=Start/refresh TID-Recon-Dog honeypot
+[Timer]
+OnBootSec=20s
+OnUnitActiveSec=60s
+[Install]
+WantedBy=timers.target
+UNIT
+
+systemctl daemon-reload
+systemctl enable --now tid.timer

@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tid-config
+data:
+  # Bind every listener to all pod interfaces. External reachability is
+  # governed by the Service objects + NetworkPolicy, not by these binds.
+  HTTP_HOST: "0.0.0.0"
+  SSH_HOST: "0.0.0.0"
+  FTP_HOST: "0.0.0.0"
+  POSTGRES_HOST: "0.0.0.0"
+  RTSP_HOST: "0.0.0.0"
+  RDP_HOST: "0.0.0.0"
+  TELNET_HOST: "0.0.0.0"
+  MODBUS_HOST: "0.0.0.0"
+  SNMP_HOST: "0.0.0.0"
+  SMTP_HOST: "0.0.0.0"
+
+  # Container listens on these (high, unprivileged) ports. The Services remap
+  # real well-known ports (22, 80, ...) onto them, so a scanner sees genuine
+  # services while the container never needs privileged-port capabilities.
+  HTTP_PORT: "3000"
+  SSH_PORT: "2222"
+  FTP_PORT: "2121"
+  POSTGRES_PORT: "5432"
+  RTSP_PORT: "8554"
+  RDP_PORT: "3389"
+  TELNET_PORT: "2323"
+  MODBUS_PORT: "1502"
+  SNMP_PORT: "16100"
+  SMTP_PORT: "2525"
+
+  # Operator metrics plane. 0.0.0.0 so kubelet probes / Prometheus can reach it
+  # over the pod IP; exposure is restricted to ClusterIP + NetworkPolicy.
+  OPERATOR_HOST: "0.0.0.0"
+  OPERATOR_PORT: "9090"
+
+  # Behavioural tuning (see README env table).
+  MAX_CONNECTIONS_PER_IP: "25"
+  PERSONA_ROTATE_AFTER_HOURS: "0"

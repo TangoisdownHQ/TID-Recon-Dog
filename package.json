@@ -1,0 +1,58 @@
+{
+  "name": "tid-recon-dog",
+  "type": "module",
+  "version": "1.0.0",
+  "description": "A decoy system project",
+  "main": "dist/index.js",
+  "bin": {
+    "start": "./bin/start.js"
+  },
+  "scripts": {
+    "build": "tsc && npm run copy:assets",
+    "copy:assets": "node -e \"const fs=require('fs');fs.cpSync('src/operator/web','dist/operator/web',{recursive:true})\"",
+    "start": "node dist/index.js start tidrecondog",
+    "start:services": "node dist/index.js start all",
+    "serve:dashboard": "node dist/index.js serve-dashboard",
+    "sessions": "node dist/index.js sessions",
+    "attackers": "node dist/index.js attackers",
+    "watch": "node dist/index.js watch",
+    "dashboard": "node dist/index.js dashboard",
+    "profiles": "node dist/index.js profiles",
+    "personas": "node dist/index.js personas",
+    "export:dataset": "node dist/index.js export-dataset",
+    "export:transcripts": "node dist/index.js export-transcripts",
+    "ct:manifest": "node dist/index.js ct-manifest",
+    "eval:export": "node dist/index.js export-eval-suite",
+    "eval:score": "node dist/index.js score-eval",
+    "cloud:bundle": "node dist/index.js cloud-bundle",
+    "control:show": "node dist/index.js control show",
+    "retrain": "node dist/index.js retrain"
+  },
+  "dependencies": {
+    "@langchain/community": "^0.3.37",
+    "@langchain/core": "^0.3.43",
+    "@langchain/openai": "^0.4.9",
+    "@types/pg": "^8.11.11",
+    "dotenv": "^16.4.7",
+    "express": "^4.17.1",
+    "express-rate-limit": "^7.4.1",
+    "ftp-srv": "^2.16.2",
+    "langchain": "^0.3.19",
+    "multer": "^1.4.5-lts.2",
+    "openai": "^4.86.1",
+    "p-queue": "^8.0.1",
+    "pg": "^8.13.3",
+    "pino": "^9.6.0",
+    "pino-pretty": "^13.0.0",
+    "ssh2": "^1.5.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/multer": "^1.4.12",
+    "@types/ssh2": "^1.15.1",
+    "ts-node": "^9.0.0",
+    "typescript": "^4.9.5"
+  },
+  "author": "TangoIsDown",
+  "license": "MIT"
+}

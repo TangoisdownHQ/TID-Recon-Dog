@@ -1,0 +1,87 @@
+# Attacker-facing decoy services, one Service object per protocol (idiomatic
+# k8s addressing + clean per-service surface). Each maps the REAL well-known
+# port onto the container's high port, so in-cluster clients and scanners see
+# genuine-looking services (ssh on 22, postgres on 5432, ...).
+#
+# Default type is ClusterIP (safe to apply anywhere, no cloud LB cost). For
+# real external exposure use the overlay:  kubectl apply -k k8s/overlays/external
+---
+apiVersion: v1
+kind: Service
+metadata: { name: tid-ssh, labels: { app.kubernetes.io/name: tid-recon-dog, app.kubernetes.io/component: ssh } }
+spec:
+  type: ClusterIP
+  selector: { app.kubernetes.io/name: tid-recon-dog }
+  ports: [{ name: ssh, port: 22, targetPort: ssh, protocol: TCP }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: tid-http, labels: { app.kubernetes.io/name: tid-recon-dog, app.kubernetes.io/component: http } }
+spec:
+  type: ClusterIP
+  selector: { app.kubernetes.io/name: tid-recon-dog }
+  ports: [{ name: http, port: 80, targetPort: http, protocol: TCP }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: tid-ftp, labels: { app.kubernetes.io/name: tid-recon-dog, app.kubernetes.io/component: ftp } }
+spec:
+  type: ClusterIP
+  selector: { app.kubernetes.io/name: tid-recon-dog }
+  ports: [{ name: ftp, port: 21, targetPort: ftp, protocol: TCP }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: tid-postgres, labels: { app.kubernetes.io/name: tid-recon-dog, app.kubernetes.io/component: postgres } }
+spec:
+  type: ClusterIP
+  selector: { app.kubernetes.io/name: tid-recon-dog }
+  ports: [{ name: postgres, port: 5432, targetPort: postgres, protocol: TCP }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: tid-rtsp, labels: { app.kubernetes.io/name: tid-recon-dog, app.kubernetes.io/component: rtsp } }
+spec:
+  type: ClusterIP
+  selector: { app.kubernetes.io/name: tid-recon-dog }
+  ports: [{ name: rtsp, port: 554, targetPort: rtsp, protocol: TCP }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: tid-rdp, labels: { app.kubernetes.io/name: tid-recon-dog, app.kubernetes.io/component: rdp } }
+spec:
+  type: ClusterIP
+  selector: { app.kubernetes.io/name: tid-recon-dog }
+  ports: [{ name: rdp, port: 3389, targetPort: rdp, protocol: TCP }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: tid-telnet, labels: { app.kubernetes.io/name: tid-recon-dog, app.kubernetes.io/component: telnet } }
+spec:
+  type: ClusterIP
+  selector: { app.kubernetes.io/name: tid-recon-dog }
+  ports: [{ name: telnet, port: 23, targetPort: telnet, protocol: TCP }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: tid-modbus, labels: { app.kubernetes.io/name: tid-recon-dog, app.kubernetes.io/component: modbus } }
+spec:
+  type: ClusterIP
+  selector: { app.kubernetes.io/name: tid-recon-dog }
+  ports: [{ name: modbus, port: 502, targetPort: modbus, protocol: TCP }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: tid-smtp, labels: { app.kubernetes.io/name: tid-recon-dog, app.kubernetes.io/component: smtp } }
+spec:
+  type: ClusterIP
+  selector: { app.kubernetes.io/name: tid-recon-dog }
+  ports: [{ name: smtp, port: 25, targetPort: smtp, protocol: TCP }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: tid-snmp, labels: { app.kubernetes.io/name: tid-recon-dog, app.kubernetes.io/component: snmp } }
+spec:
+  type: ClusterIP
+  selector: { app.kubernetes.io/name: tid-recon-dog }
+  ports: [{ name: snmp, port: 161, targetPort: snmp, protocol: UDP }]

@@ -1,0 +1,14 @@
+# kind cluster preconfigured for Cilium: the default CNI (kindnet) is disabled
+# so Cilium becomes the network + NetworkPolicy enforcer. kindnet does NOT
+# enforce NetworkPolicy, which is why the operator-plane isolation needs Cilium.
+#
+#   kind create cluster --name tid --config k8s/cilium/kind-cluster.yaml
+#   # then install Cilium (see k8s/cilium/README.md)
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+networking:
+  disableDefaultCNI: true
+  # Keep kube-proxy; this setup runs Cilium with kubeProxyReplacement=false for
+  # the simplest, most portable install. (Flip both for a proxy-free cluster.)
+nodes:
+  - role: control-plane

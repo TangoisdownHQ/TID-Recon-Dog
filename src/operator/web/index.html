@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TID-Recon-Dog · Operator</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="splash"><pre id="splashLogo"></pre></div>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">▣</span>
+      <span class="title">TID-RECON-DOG</span>
+      <span class="subtitle">// OPERATOR CONSOLE</span>
+    </div>
+    <div class="status">
+      <span id="liveDot" class="dot"></span>
+      <span id="liveText">connecting…</span>
+      <label class="toggle">
+        <input type="checkbox" id="autoRefresh" checked />
+        <span>auto-refresh</span>
+      </label>
+      <span id="lastUpdated" class="muted"></span>
+    </div>
+  </header>
+
+  <main>
+    <section class="kpis" id="kpis"></section>
+
+    <section class="grid">
+      <div class="card span2">
+        <div class="card-head"><h3>Activity · last 24h</h3><span class="muted" id="timelineMeta"></span></div>
+        <div class="chart" id="timeline"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>Risk tiers</h3></div>
+        <div id="riskBars" class="bars"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>Intent</h3></div>
+        <div id="intentBars" class="bars"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>Top origins</h3></div>
+        <div id="countryBars" class="bars"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>Service hits</h3></div>
+        <div id="serviceBars" class="bars"></div>
+      </div>
+    </section>
+
+    <nav class="tabs">
+      <button class="tab active" data-tab="feed">Live Feed</button>
+      <button class="tab" data-tab="attackers">Attackers</button>
+      <button class="tab" data-tab="sessions">Sessions</button>
+      <button class="tab" data-tab="alerts">Alerts</button>
+      <button class="tab" data-tab="control">Control</button>
+      <button class="tab" data-tab="cti">CTI</button>
+      <button class="tab" data-tab="fleet">Fleet</button>
+      <button class="tab" data-tab="mlops">MLOps</button>
+    </nav>
+
+    <section class="card panel" id="panel"></section>
+  </main>
+
+  <div id="drawer" class="drawer hidden">
+    <div class="drawer-head">
+      <h3 id="drawerTitle">Detail</h3>
+      <button id="drawerClose">✕</button>
+    </div>
+    <pre id="drawerBody"></pre>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
