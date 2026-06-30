@@ -75,14 +75,16 @@ export function darkwebFeeds(): string[] {
     .filter(Boolean);
 }
 
-// Feeds used for the news/event stream: dedicated news feeds plus the
-// correlation feeds (every leak/paste source doubles as a news source).
+// Feeds used for the news/event stream — DARKWEB_NEWS_FEEDS only. We do NOT
+// reuse DARKWEB_FEEDS here: those are IP/URL blocklists meant for IOC
+// correlation, and parsing them as news turns thousands of raw blocklist lines
+// into junk "headlines". Put leak/paste sources you want as news directly in
+// DARKWEB_NEWS_FEEDS.
 export function darkwebNewsFeeds(): string[] {
-  const extra = (process.env.DARKWEB_NEWS_FEEDS || "")
+  return (process.env.DARKWEB_NEWS_FEEDS || "")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
-  return Array.from(new Set([...extra, ...darkwebFeeds()]));
 }
 
 export function darkwebConfigured(): boolean {
@@ -317,7 +319,7 @@ function parseNews(body: string, source: string, now: string): DarkwebNewsItem[]
     for (const e of entries) {
       push(xmlTag(e, "title"), xmlTag(e, "description") || xmlTag(e, "summary") || xmlTag(e, "content"), undefined, undefined, xmlTag(e, "pubDate") || xmlTag(e, "published") || xmlTag(e, "updated"));
     }
-    if (out.length) return out;
+    if (out.length) return out.slice(0, 300);
   }
 
   // JSON array, or an object wrapping an array under a common key.
@@ -332,7 +334,7 @@ function parseNews(body: string, source: string, now: string): DarkwebNewsItem[]
       }
       if (arr) {
         for (const o of arr) pushObj(o);
-        if (out.length) return out;
+        if (out.length) return out.slice(0, 300);
       }
     } catch {
       /* fall through to line parsing */
@@ -353,7 +355,8 @@ function parseNews(body: string, source: string, now: string): DarkwebNewsItem[]
     }
     push(s, "");
   }
-  return out;
+  // Cap per-feed output so a misconfigured/huge feed can't flood the stream.
+  return out.slice(0, 300);
 }
 
 /** Pull news/event feeds, sanitize + classify entries, persist + return count. */

@@ -645,7 +645,7 @@ async function renderDarkweb() {
     `<div class="kpi"><div class="k-label">${esc(k)}</div><div class="k-value" style="font-size:20px">${esc(v)}</div></div>`).join("")
     || '<div class="muted">no items yet</div>';
 
-  const rows = items.map((i) => `<tr>
+  const rows = items.map((i, idx) => `<tr data-dw="${idx}">
     <td>${shortTime(i.at)}</td>
     <td>${pill("darkweb", "dark-web")} ${kindPill(i.kind)}</td>
     <td class="hot wrap">${df(i.title)}${(i.tags && i.tags.length) ? " " + i.tags.map((t) => pill("recon", t)).join(" ") : ""}</td>
@@ -662,12 +662,55 @@ async function renderDarkweb() {
       <p class="cfg-note">External dark-web / threat intel pulled from configured feeds. Every row is tagged <span class="pill darkweb">dark-web</span> to mark it as external, not honeypot-observed. The <b>Headline / Indicator</b> column says what happened, <b>Detail</b> gives context, and <b>Feed</b> is the source. URLs/IPs are <b>defanged</b> (hxxp://, [.]) — they are intentionally not clickable; never open them outside a sandbox.</p>
       <p class="cfg-note" style="margin-top:4px">Kinds: ${kindPill("breach")} data breach / hack · ${kindPill("leak")} ransomware leak-site listing or credential dump · ${kindPill("listing")} item for sale on a market · ${kindPill("chatter")} forum/channel discussion · ${kindPill("news")} general security news · ${kindPill("correlation")} one of <i>our</i> captured IOCs seen in an external feed. Set <code>DARKWEB_FEEDS</code>/<code>DARKWEB_NEWS_FEEDS</code> (optionally <code>DARKWEB_PROXY</code> for Tor/.onion).</p>
       <div class="kpis" style="margin-bottom:12px">${countCards}</div>
+      <div class="control-row" style="margin-bottom:8px"><span class="muted">${items.length} items · click a row for a mini overview</span></div>
       <table><thead><tr><th>Time</th><th>Source</th><th>Headline / Indicator</th><th>Detail</th><th>Feed</th></tr></thead>
         <tbody>${rows || '<tr><td colspan="5" class="empty">no dark-web items yet (configure DARKWEB_FEEDS / DARKWEB_NEWS_FEEDS, then refresh)</td></tr>'}</tbody></table>
     </div>`;
 
+  panel.querySelectorAll("tr[data-dw]").forEach((tr) => {
+    tr.onclick = () => openDarkwebDetail(items[+tr.getAttribute("data-dw")], kindPill);
+  });
+
   const btn = document.getElementById("dwFeedRefresh");
   if (btn) btn.onclick = async () => { btn.disabled = true; btn.textContent = "scanning…"; try { await apiPost("/api/cti/darkweb/refresh", {}); } catch (e) {} renderDarkweb(); };
+}
+
+// Mini overview drawer for a dark-web item — explains what it is, breaks out
+// actor/victim for leak-site listings, and shows the full (defanged) context.
+const DW_KIND_HELP = {
+  breach: "A reported data breach or intrusion.",
+  leak: "A ransomware leak-site listing or a credential/data dump.",
+  listing: "Something being advertised for sale on a market or forum.",
+  chatter: "Discussion, boasting, or claims from a forum / channel.",
+  news: "General security news from a public source.",
+  correlation: "One of our OWN captured indicators was found in an external feed — i.e. an attacker we saw is also circulating in dark-web/threat sources.",
+};
+
+function openDarkwebDetail(item, kindPill) {
+  if (!item) return;
+  document.getElementById("drawerTitle").textContent = "Dark-web · " + (item.kind || "item");
+  const row = (k, v) => `<div class="dw-row"><span class="dw-k">${esc(k)}</span><span class="dw-v">${v}</span></div>`;
+  const when = (() => { const d = new Date(item.at); return isNaN(d) ? esc(item.at || "—") : d.toLocaleString(); })();
+  const tagHtml = (item.tags && item.tags.length) ? item.tags.map((t) => pill("recon", t)).join(" ") : '<span class="muted">none</span>';
+  // For synthesized leak items the title is "actor → victim".
+  const arrow = typeof item.title === "string" && item.title.includes(" → ") ? item.title.split(" → ") : null;
+
+  let html = "";
+  html += row("What this is", `${kindPill(item.kind)} <span class="muted">${esc(DW_KIND_HELP[item.kind] || "External dark-web / threat-intel item.")}</span>`);
+  if (arrow) {
+    html += row("Threat actor", `<span class="hot">${df(arrow[0])}</span>`);
+    html += row("Claimed victim", df(arrow.slice(1).join(" → ")));
+  } else {
+    html += row(item.kind === "correlation" ? "Indicator" : "Headline", `<span class="hot">${df(item.title)}</span>`);
+  }
+  if (item.detail) html += row("Details", df(item.detail));
+  html += row("Tags", tagHtml);
+  html += row("When", esc(when));
+  html += row("Source feed", df(item.source));
+  html += `<div class="dw-warn">⚠ External intel, not honeypot-observed. URLs/IPs are defanged and intentionally not clickable — never open them outside an isolated sandbox.</div>`;
+
+  document.getElementById("drawerBody").innerHTML = `<div class="dw-overview">${html}</div>`;
+  document.getElementById("drawer").classList.remove("hidden");
 }
 
 async function renderFleet() {

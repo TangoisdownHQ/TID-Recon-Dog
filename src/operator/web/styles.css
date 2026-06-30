@@ -156,6 +156,11 @@ td.wrap { white-space: normal; max-width: 380px; color: var(--muted); overflow-w
 .pill.brute_force { color: var(--warn); border-color: var(--warn); }
 .pill.recon { color: var(--burgundy-bright); border-color: var(--burgundy-bright); }
 .pill.darkweb { color: #ff8a3d; border-color: #ff8a3d; background: rgba(255, 138, 61, 0.08); font-weight: 700; }
+.dw-overview { display: flex; flex-direction: column; gap: 10px; white-space: normal; }
+.dw-row { display: grid; grid-template-columns: 120px 1fr; gap: 10px; align-items: start; }
+.dw-row .dw-k { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; padding-top: 2px; }
+.dw-row .dw-v { font-size: 12.5px; line-height: 1.5; color: var(--text); overflow-wrap: anywhere; word-break: break-word; }
+.dw-warn { margin-top: 4px; padding: 8px 10px; border: 1px solid #ff8a3d; background: rgba(255, 138, 61, 0.08); color: #ffb888; font-size: 11.5px; line-height: 1.5; }
 
 select, button.act {
   background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
