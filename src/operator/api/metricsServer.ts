@@ -22,7 +22,7 @@ import { buildStixBundle, buildMispEvent, buildBlocklist } from "../../cti/expor
 import { enrichmentProviders } from "../../cti/enrich.js";
 import { forwardingTargets } from "../../cti/forward.js";
 import { feedUrls, ingestFeeds } from "../../cti/feeds.js";
-import { refreshDarkweb, readDarkwebHits, darkwebConfigured } from "../../cti/darkweb.js";
+import { refreshDarkweb, readDarkwebHits, darkwebConfigured, buildDarkwebFeed } from "../../cti/darkweb.js";
 import {
   isValidAction,
   isValidMode,
@@ -318,6 +318,10 @@ export async function startOperatorServer(): Promise<OperatorServerHandle> {
   app.get("/api/cti/blocklist.csv", async (_req, res) => res.type("text/csv").send((await buildBlocklist()).csv));
   app.post("/api/cti/ingest-feeds", async (_req, res) => res.json(await ingestFeeds()));
   app.get("/api/cti/darkweb", async (_req, res) => res.json({ configured: darkwebConfigured(), hits: await readDarkwebHits(100) }));
+  app.get("/api/cti/darkweb-feed", async (req, res) => {
+    const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 150));
+    res.json({ configured: darkwebConfigured(), items: await buildDarkwebFeed(limit) });
+  });
   app.post("/api/cti/darkweb/refresh", async (_req, res) => res.json(await refreshDarkweb()));
 
   // Minimal TAXII 2.1-style discovery + objects (lets a TAXII client pull intel).

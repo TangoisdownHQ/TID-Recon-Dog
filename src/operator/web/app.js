@@ -615,6 +615,47 @@ async function renderCti() {
   if (dw) dw.onclick = async () => { dw.disabled = true; dw.textContent = "scanning…"; try { await apiPost("/api/cti/darkweb/refresh", {}); } catch (e) {} renderCti(); };
 }
 
+async function renderDarkweb() {
+  const panel = document.getElementById("panel");
+  let feed = { configured: false, items: [] };
+  try { feed = await api("/api/cti/darkweb-feed?limit=200"); } catch (e) {}
+  const items = feed.items || [];
+
+  const kindPill = (kind) => {
+    const cls = kind === "breach" || kind === "leak" ? "high"
+      : kind === "listing" ? "brute_force"
+      : kind === "correlation" ? "exploitation" : "recon";
+    return pill(cls, kind);
+  };
+  const counts = items.reduce((m, i) => (m[i.kind] = (m[i.kind] || 0) + 1, m), {});
+  const countCards = Object.entries(counts).map(([k, v]) =>
+    `<div class="kpi"><div class="k-label">${esc(k)}</div><div class="k-value" style="font-size:20px">${esc(v)}</div></div>`).join("")
+    || '<div class="muted">no items yet</div>';
+
+  const rows = items.map((i) => `<tr>
+    <td>${shortTime(i.at)}</td>
+    <td>${pill("darkweb", "dark-web")} ${kindPill(i.kind)}</td>
+    <td class="hot wrap">${esc(i.title)}${(i.tags && i.tags.length) ? " " + i.tags.map((t) => pill("recon", t)).join(" ") : ""}</td>
+    <td class="wrap muted">${esc(i.detail)}</td>
+    <td class="wrap muted">${esc(i.source)}</td>
+  </tr>`).join("");
+
+  panel.innerHTML = `
+    <div class="cfg-section">
+      <h4>Dark-web news &amp; events
+        <span class="pill ${feed.configured ? "recon" : "high"}">${feed.configured ? "feeds configured" : "not configured"}</span>
+        <button class="act sm" id="dwFeedRefresh">refresh</button>
+      </h4>
+      <p class="cfg-note">External dark-web intel — leak/breach announcements, marketplace listings, actor chatter, plus correlations of our own captured IOCs. Every row is tagged <span class="pill darkweb">dark-web</span> to mark it as external, not honeypot-observed. Set <code>DARKWEB_FEEDS</code> and/or <code>DARKWEB_NEWS_FEEDS</code> (optionally <code>DARKWEB_PROXY</code> for Tor/.onion).</p>
+      <div class="kpis" style="margin-bottom:12px">${countCards}</div>
+      <table><thead><tr><th>Time</th><th>Source</th><th>Headline / Indicator</th><th>Detail</th><th>Feed</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="5" class="empty">no dark-web items yet (configure DARKWEB_FEEDS / DARKWEB_NEWS_FEEDS, then refresh)</td></tr>'}</tbody></table>
+    </div>`;
+
+  const btn = document.getElementById("dwFeedRefresh");
+  if (btn) btn.onclick = async () => { btn.disabled = true; btn.textContent = "scanning…"; try { await apiPost("/api/cti/darkweb/refresh", {}); } catch (e) {} renderDarkweb(); };
+}
+
 async function renderFleet() {
   const panel = document.getElementById("panel");
   let nodes = [];
@@ -643,6 +684,7 @@ const TAB_RENDERERS = {
   alerts: renderAlerts,
   control: renderControl,
   cti: renderCti,
+  darkweb: renderDarkweb,
   fleet: renderFleet,
   mlops: renderMlops,
 };
