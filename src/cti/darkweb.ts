@@ -227,45 +227,98 @@ function newsId(source: string, title: string): string {
   return "dw_" + (h >>> 0).toString(36);
 }
 
-// Parse one feed body into news items. Supports JSON-lines/JSON-array objects
-// ({title|headline|name, summary|description|text, kind|category, tags, at|date})
-// and falls back to treating non-empty plaintext lines as headlines.
+// Field aliases seen across common feeds: generic news JSON, RSS-as-JSON,
+// ransomware leak-site trackers (ransomware.live: post_title/group_name/
+// discovered), paste/breach APIs.
+const pickTitle = (o: any): string => o.title || o.headline || o.name || o.post_title || o.victim || o.subject || "";
+const pickSummary = (o: any): string => o.summary || o.description || o.text || o.info || o.details || o.body || "";
+const pickKind = (o: any): string | undefined => o.kind || o.category || o.type;
+const pickAt = (o: any): string | undefined => o.at || o.date || o.published || o.discovered || o.created || o.pubDate || o.post_date;
+function pickTags(o: any): string[] | undefined {
+  if (Array.isArray(o.tags)) return o.tags as string[];
+  const t: string[] = [];
+  if (o.group_name) t.push(String(o.group_name));
+  else if (o.group) t.push(String(o.group));
+  if (o.country) t.push(String(o.country));
+  if (o.activity && o.activity !== "Not Found") t.push(String(o.activity));
+  return t.length ? t : undefined;
+}
+
+// Minimal XML helpers (no XML dep) — enough to lift <item>/<entry> fields.
+const stripCdata = (s: string): string => s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1");
+const decodeEntities = (s: string): string =>
+  s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&#x27;/gi, "'").replace(/&amp;/g, "&");
+const stripHtml = (s: string): string => decodeEntities(stripCdata(s)).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+function xmlTag(xml: string, name: string): string {
+  const m = xml.match(new RegExp(`<${name}\\b[^>]*>([\\s\\S]*?)<\\/${name}>`, "i"));
+  return m ? stripHtml(m[1]) : "";
+}
+
+// Parse one feed body into news items. Supports RSS/Atom (XML), JSON arrays,
+// JSON objects that wrap an array (e.g. {data:[...]}), JSON-lines, and falls
+// back to treating non-empty plaintext lines as headlines.
 function parseNews(body: string, source: string, now: string): DarkwebNewsItem[] {
   const out: DarkwebNewsItem[] = [];
   const push = (rawTitle: string, rawSummary: string, kind?: string, tags?: unknown, at?: string) => {
     const title = sanitizeText(String(rawTitle || "").trim(), undefined, 200);
     if (!title) return;
     const summary = sanitizeText(String(rawSummary || "").trim(), undefined, 400);
-    const k: DarkwebNewsKind = (["leak", "breach", "chatter", "listing", "news"].includes(String(kind))
-      ? (kind as DarkwebNewsKind)
-      : classifyNews(title + " " + summary));
     const tagList = Array.isArray(tags)
       ? tags.map((x) => sanitizeText(String(x), undefined, 40)).filter(Boolean).slice(0, 8)
       : [];
-    out.push({ id: newsId(source, title), title, summary, source, kind: k, at: at || now, tags: tagList });
+    const k: DarkwebNewsKind = (["leak", "breach", "chatter", "listing", "news"].includes(String(kind))
+      ? (kind as DarkwebNewsKind)
+      : classifyNews([title, summary, ...tagList].join(" ")));
+    // Normalize the timestamp to ISO so mixed feeds (RSS pubDate vs JSON ISO)
+    // sort consistently in the unified feed.
+    let when = now;
+    if (at) {
+      const d = new Date(at);
+      if (!isNaN(d.getTime())) when = d.toISOString();
+    }
+    out.push({ id: newsId(source, title), title, summary, source, kind: k, at: when, tags: tagList });
+  };
+  const pushObj = (o: any) => {
+    if (o && typeof o === "object") push(pickTitle(o), pickSummary(o), pickKind(o), pickTags(o), pickAt(o));
   };
 
   const trimmed = body.trim();
-  // Try a single JSON array first.
-  if (trimmed.startsWith("[")) {
+
+  // RSS / Atom (XML) — lift each <item>/<entry>.
+  if (/^<\?xml|^<rss\b|^<feed\b/i.test(trimmed) || /<(item|entry)\b/i.test(trimmed)) {
+    const entries = trimmed.match(/<(item|entry)\b[\s\S]*?<\/\1>/gi) || [];
+    for (const e of entries) {
+      push(xmlTag(e, "title"), xmlTag(e, "description") || xmlTag(e, "summary") || xmlTag(e, "content"), undefined, undefined, xmlTag(e, "pubDate") || xmlTag(e, "published") || xmlTag(e, "updated"));
+    }
+    if (out.length) return out;
+  }
+
+  // JSON array, or an object wrapping an array under a common key.
+  if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
     try {
-      const arr = JSON.parse(trimmed) as any[];
-      for (const o of arr) {
-        if (o && typeof o === "object") push(o.title || o.headline || o.name, o.summary || o.description || o.text, o.kind || o.category, o.tags, o.at || o.date || o.published);
+      const parsed = JSON.parse(trimmed);
+      let arr: any[] | null = Array.isArray(parsed) ? parsed : null;
+      if (!arr && parsed && typeof parsed === "object") {
+        const keys = ["data", "results", "items", "victims", "posts", "entries", "list"];
+        const k = keys.find((x) => Array.isArray(parsed[x]));
+        arr = k ? parsed[k] : ((Object.values(parsed).find((v) => Array.isArray(v)) as any[]) || null);
       }
-      if (out.length) return out;
+      if (arr) {
+        for (const o of arr) pushObj(o);
+        if (out.length) return out;
+      }
     } catch {
       /* fall through to line parsing */
     }
   }
-  // JSON-lines or plaintext lines.
+
+  // JSON-lines or plaintext headlines.
   for (const line of trimmed.split(/\r?\n/)) {
     const s = line.trim();
     if (!s) continue;
     if (s.startsWith("{")) {
       try {
-        const o = JSON.parse(s);
-        push(o.title || o.headline || o.name, o.summary || o.description || o.text, o.kind || o.category, o.tags, o.at || o.date || o.published);
+        pushObj(JSON.parse(s));
         continue;
       } catch {
         /* treat as plaintext */

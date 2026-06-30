@@ -30,6 +30,18 @@ services:
     environment:
       - OPERATOR_HOST=0.0.0.0
       - OPERATOR_PORT=9090
+%{ if threat_feeds != "" ~}
+      - THREAT_FEEDS=${threat_feeds}
+%{ endif ~}
+%{ if darkweb_feeds != "" ~}
+      - DARKWEB_FEEDS=${darkweb_feeds}
+%{ endif ~}
+%{ if darkweb_news_feeds != "" ~}
+      - DARKWEB_NEWS_FEEDS=${darkweb_news_feeds}
+%{ endif ~}
+%{ if darkweb_proxy != "" ~}
+      - DARKWEB_PROXY=${darkweb_proxy}
+%{ endif ~}
 %{ if ai_model_url != "" ~}
       - AI_MODEL_URL=${ai_model_url}
       - AI_MODEL=${ai_model}

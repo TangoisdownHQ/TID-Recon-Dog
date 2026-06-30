@@ -112,12 +112,16 @@ resource "aws_instance" "honeypot" {
   iam_instance_profile   = aws_iam_instance_profile.instance.name
 
   user_data = templatefile("${path.module}/user_data.sh.tftpl", {
-    region          = var.region
-    registry        = local.registry
-    image_uri       = local.image_uri
-    decoy_ports_tcp = var.decoy_ports_tcp
-    ai_model_url    = var.ai_model_url
-    ai_model        = var.ai_model
+    region             = var.region
+    registry           = local.registry
+    image_uri          = local.image_uri
+    decoy_ports_tcp    = var.decoy_ports_tcp
+    ai_model_url       = var.ai_model_url
+    ai_model           = var.ai_model
+    threat_feeds       = var.threat_feeds
+    darkweb_feeds      = var.darkweb_feeds
+    darkweb_news_feeds = var.darkweb_news_feeds
+    darkweb_proxy      = var.darkweb_proxy
   })
 
   root_block_device {

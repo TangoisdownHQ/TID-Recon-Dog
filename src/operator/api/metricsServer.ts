@@ -379,6 +379,23 @@ export async function startOperatorServer(): Promise<OperatorServerHandle> {
   void selfReport();
   setInterval(() => void selfReport(), 60_000);
 
+  // Auto-refresh the dark-web news/event + correlation stream so the CTI tab
+  // populates without anyone clicking "refresh". Only runs when feeds are
+  // configured (DARKWEB_FEEDS / DARKWEB_NEWS_FEEDS); errors are swallowed inside
+  // refreshDarkweb so a flaky feed never takes the operator plane down.
+  if (darkwebConfigured()) {
+    const dwRefresh = Math.max(5, Number(process.env.DARKWEB_REFRESH_MINUTES) || 30) * 60_000;
+    setTimeout(() => void refreshDarkweb(), 15_000); // initial pull shortly after boot
+    setInterval(() => void refreshDarkweb(), dwRefresh);
+  }
+  // Auto-ingest threat-intel blocklists into the auto-block list on the same
+  // cadence (defaults to 6h) when THREAT_FEEDS is set.
+  if (feedUrls().length) {
+    const fiRefresh = Math.max(15, Number(process.env.THREAT_FEEDS_MINUTES) || 360) * 60_000;
+    setTimeout(() => void ingestFeeds(), 20_000);
+    setInterval(() => void ingestFeeds(), fiRefresh);
+  }
+
   if (generated) {
     console.log(
       formatConsole(

@@ -77,3 +77,38 @@ variable "decoy_ports_tcp" {
     { host = 25, container = 2525 },   # smtp
   ]
 }
+
+# --- CTI / dark-web feeds ----------------------------------------------------
+# All comma-separated lists of URLs, injected into the container's environment.
+# Defaults point at reputable free/public sources so the CTI + Dark-web tabs
+# populate out of the box; override per-deploy or set "" to disable a stream.
+
+# IP blocklists ingested by "ingest feeds -> block" (plaintext IP-per-line).
+variable "threat_feeds" {
+  description = "Comma-separated IP-blocklist feed URLs (THREAT_FEEDS)."
+  type        = string
+  default     = "https://feodotracker.abuse.ch/downloads/ipblocklist.txt,https://lists.blocklist.de/lists/all.txt,https://raw.githubusercontent.com/stamparm/ipsum/master/levels/4.txt"
+}
+
+# Feeds correlated against our own observed IOCs (IPs/usernames/URLs).
+variable "darkweb_feeds" {
+  description = "Comma-separated feeds for IOC correlation (DARKWEB_FEEDS)."
+  type        = string
+  default     = "https://feodotracker.abuse.ch/downloads/ipblocklist.txt,https://urlhaus.abuse.ch/downloads/text/"
+}
+
+# Feeds surfaced as the dark-web news/event stream (JSON, RSS/Atom, or plaintext
+# headlines). Defaults: ransomware leak-site tracker + security-news RSS.
+variable "darkweb_news_feeds" {
+  description = "Comma-separated news/event feed URLs (DARKWEB_NEWS_FEEDS)."
+  type        = string
+  default     = "https://api.ransomware.live/v1/recentvictims,https://www.bleepingcomputer.com/feed/,https://feeds.feedburner.com/TheHackersNews"
+}
+
+# Optional SOCKS proxy for .onion / anonymized fetch. Requires a reachable Tor
+# proxy on the host; leave empty unless you run one. Use socks5h:// for .onion.
+variable "darkweb_proxy" {
+  description = "SOCKS proxy URL for dark-web fetch (DARKWEB_PROXY), e.g. socks5h://127.0.0.1:9050."
+  type        = string
+  default     = ""
+}
