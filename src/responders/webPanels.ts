@@ -183,7 +183,7 @@ ${err}
 }
 
 // Fake tables with believable rows — bait that captures the attacker's SQL.
-const DB_TABLES: Record<string, { cols: string[]; rows: string[][] }> = {
+export const DB_TABLES: Record<string, { cols: string[]; rows: string[][] }> = {
   users: {
     cols: ["id", "username", "email", "password_hash", "role", "last_login"],
     rows: [

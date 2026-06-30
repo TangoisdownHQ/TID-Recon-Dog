@@ -10,8 +10,29 @@ import { safeShellOutput } from "../responders/safety.js";
 import { logError } from "../utils/logger.js";
 import { acquireConnection, releaseConnection } from "../utils/connectionThrottle.js";
 
-const IAC_WILL_ECHO = Buffer.from([255, 251, 1]);
-const IAC_WILL_SUPPRESS_GO_AHEAD = Buffer.from([255, 251, 3]);
+// Strip telnet IAC command sequences so negotiation bytes don't corrupt the
+// username/commands. We do NOT assert WILL ECHO (that flips the client into
+// char-at-a-time mode); staying in line mode means whole commands arrive and
+// the client echoes locally — so the shell actually works.
+function stripIac(buf: Buffer): string {
+  const out: number[] = [];
+  for (let i = 0; i < buf.length; i++) {
+    if (buf[i] === 255) {
+      const cmd = buf[i + 1];
+      if (cmd === 250) { // SB ... SE (subnegotiation)
+        i += 2;
+        while (i < buf.length && buf[i] !== 240) i++;
+      } else if (cmd >= 251 && cmd <= 254) {
+        i += 2; // WILL/WONT/DO/DONT + option
+      } else {
+        i += 1;
+      }
+      continue;
+    }
+    out.push(buf[i]);
+  }
+  return Buffer.from(out).toString("utf8");
+}
 
 export async function startTelnetService() {
   const server = net.createServer((socket: Socket) => {
@@ -35,14 +56,14 @@ export async function startTelnetService() {
         ip: remoteAddress,
         detail: "connection opened",
       });
-      socket.write(Buffer.concat([IAC_WILL_ECHO, IAC_WILL_SUPPRESS_GO_AHEAD]));
       socket.write(buildTelnetBanner(context));
+      socket.write("\r\nlogin: ");
     })();
 
     socket.on("data", async (chunk: Buffer) => {
       const action = await getActionForSession(sessionId);
       const context = await resolveAttackerService(remoteAddress, "telnet");
-      const input = chunk.toString("utf8").replace(/\u0000/g, "").trim();
+      const input = stripIac(chunk).replace(/\u0000/g, "").trim();
 
       if (stage === "username") {
         username = input || "admin";
