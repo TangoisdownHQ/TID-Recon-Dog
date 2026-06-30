@@ -3,12 +3,18 @@ FROM node:18-alpine AS builder
 WORKDIR /app
 
 COPY package*.json ./
-# --no-audit/--no-fund skip a registry "audit" call that, on a flaky network,
-# can crash npm's exit handler before it links node_modules/.bin. We also invoke
-# tsc by module path below so the build never depends on the .bin shim.
-RUN npm ci --include=dev --no-audit --no-fund
+# npm ci on alpine intermittently hits the "Exit handler never called!" bug:
+# it exits 0 but leaves node_modules incomplete (e.g. typescript missing), which
+# then breaks the tsc step below. --no-audit/--no-fund reduce the trigger but
+# don't eliminate it, so we retry until the artifact we need is actually present.
+RUN for i in 1 2 3 4 5; do \
+      npm ci --include=dev --no-audit --no-fund && [ -f node_modules/typescript/bin/tsc ] && break; \
+      echo "npm ci incomplete (attempt $i) — retrying"; rm -rf node_modules; \
+    done; \
+    [ -f node_modules/typescript/bin/tsc ]
 
 COPY . .
+# Invoke tsc by module path so the build never depends on the .bin shim.
 RUN node node_modules/typescript/bin/tsc && npm run copy:assets
 
 # ---- runtime: production deps + compiled output only ----
@@ -17,7 +23,13 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 COPY package*.json ./
-RUN npm ci --omit=dev --no-audit --no-fund && npm cache clean --force
+# Same retry guard as the builder stage (see note above): verify a couple of
+# real production deps landed before trusting npm ci's exit code.
+RUN for i in 1 2 3 4 5; do \
+      npm ci --omit=dev --no-audit --no-fund && [ -d node_modules/express ] && [ -d node_modules/socks-proxy-agent ] && break; \
+      echo "npm ci incomplete (attempt $i) — retrying"; rm -rf node_modules; \
+    done; \
+    [ -d node_modules/express ] && [ -d node_modules/socks-proxy-agent ] && npm cache clean --force
 
 COPY --from=builder /app/dist ./dist
 RUN mkdir -p runtime logs uploads && chown -R node:node /app
