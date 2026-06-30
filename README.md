@@ -20,7 +20,9 @@ D   44    O   4F    G   47
 
 # TID-Recon-Dog
 
-TID-Recon-Dog is a CLI/TUI-first deception platform that exposes deterministic fake services, keeps attacker-specific memory across reconnects, and records protocol transcripts for operator review and offline training.
+**TID-Recon-Dog** is an OSINT-driven deception and cyber-threat-intelligence platform built to **trap, track, and analyze** reconnaissance and malicious intrusions. It exposes believable multi-protocol services (SSH, HTTP, FTP, PostgreSQL, RTSP, RDP, Telnet, Modbus, SNMP, SMTP) backed by deterministic responders and an optional **local AI model** (Qwen3-4B), letting attackers "log in" to a juicy, explorable decoy environment — fake filesystems, admin/IoT/database panels, and camera feeds — while every action is recorded.
+
+It keeps **per-attacker memory** across reconnects, scores intent (recon → brute-force → exploitation), and turns observations into **first-party threat intelligence**: extracted IOCs, **MITRE ATT&CK** mapping, and **STIX / MISP / TAXII** exports, with enrichment, dark-web correlation, and SIEM forwarding. An operator console adds live metrics, response playbooks (block / tarpit / decoy / message-injection), a fleet view, and an MLOps loop that retrains the model on captured traffic. Deploy it anywhere — **Docker, Kubernetes (Cilium), or AWS (EC2 / EKS)** via Terraform.
 
 📚 **Full documentation: [`docs/`](docs/README.md)** (architecture, hosting, hardening, CTI, MLOps, deployment).
 
