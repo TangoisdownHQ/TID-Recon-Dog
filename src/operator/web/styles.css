@@ -146,7 +146,7 @@ table { width: 100%; border-collapse: collapse; font-size: 12px; }
 th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
 th { color: var(--muted); font-weight: 600; text-transform: uppercase; font-size: 10px; letter-spacing: 0.1em; }
 tbody tr:hover { background: rgba(142, 36, 56, 0.08); cursor: pointer; }
-td.wrap { white-space: normal; max-width: 380px; color: var(--muted); }
+td.wrap { white-space: normal; max-width: 380px; color: var(--muted); overflow-wrap: anywhere; word-break: break-word; }
 
 .pill { padding: 2px 8px; border: 1px solid var(--line); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; }
 .pill.high { color: var(--danger); border-color: var(--danger); }

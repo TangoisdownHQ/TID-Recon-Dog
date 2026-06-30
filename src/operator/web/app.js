@@ -42,6 +42,19 @@ const el = (tag, attrs, children) => {
 };
 
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+// Display-only defang for hostile indicators: makes URLs/IPs un-clickable and
+// copy-paste-safe (https://evil.com -> hxxps://evil[.]com, 1.2.3.4 -> 1.2.3[.]4,
+// host[:]port for IPv6). Never touches stored data or exports — render-time only.
+const defang = (s) => {
+  if (s == null) return "";
+  return String(s)
+    .replace(/\bhttps?:\/\/\S+/gi, (u) => u.replace(/^https/i, "hxxps").replace(/^http/i, "hxxp").replace(/\./g, "[.]"))
+    .replace(/\bftp:\/\/\S+/gi, (u) => u.replace(/^ftp/i, "fxp").replace(/\./g, "[.]"))
+    .replace(/\b(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\b/g, "$1[.]$2[.]$3[.]$4")
+    .replace(/\b([0-9a-f]{1,4}:){3,7}[0-9a-f]{1,4}\b/gi, (m) => m.replace(/:/g, "[:]"));
+};
+// defang + HTML-escape, for any field that may carry attacker-controlled URLs/IPs.
+const df = (s) => esc(defang(s));
 const shortTime = (iso) => { const d = new Date(iso); return isNaN(d) ? "—" : d.toLocaleTimeString(); };
 const pill = (cls, text) => `<span class="pill ${esc(cls)}">${esc(text)}</span>`;
 
@@ -529,7 +542,7 @@ async function renderCti() {
     </div>`).join("") : '<div class="empty">no techniques observed yet</div>';
 
   const topIocs = (iocs.iocs || []).slice(0, 60).map((i) => `<tr>
-    <td>${esc(i.type)}</td><td class="wrap">${esc(i.value)}</td><td>${esc(i.count)}</td><td>${shortTime(i.lastSeen)}</td></tr>`).join("");
+    <td>${esc(i.type)}</td><td class="wrap">${df(i.value)}</td><td>${esc(i.count)}</td><td>${shortTime(i.lastSeen)}</td></tr>`).join("");
 
   const badge = (label, arr) => {
     const on = arr && arr.length;
@@ -583,9 +596,9 @@ async function renderCti() {
   try { novelty = await api("/api/cti/novelty?hours=24"); } catch (e) {}
   try { darkweb = await api("/api/cti/darkweb"); } catch (e) {}
   const campRows = campaigns.slice(0, 20).map((c) => `<tr>
-    <td>${esc(c.origin)}</td><td>${pill(c.intent, c.intent)}</td><td>${esc(c.members)}</td>
+    <td>${df(c.origin)}</td><td>${pill(c.intent, c.intent)}</td><td>${esc(c.members)}</td>
     <td>${esc(c.totalScore)}</td><td class="wrap">${esc((c.services || []).join(","))}</td></tr>`).join("");
-  const novRows = (novelty.iocs || []).map((i) => `<tr><td>${esc(i.type)}</td><td class="wrap">${esc(i.value)}</td><td>${shortTime(i.firstSeen)}</td></tr>`).join("");
+  const novRows = (novelty.iocs || []).map((i) => `<tr><td>${esc(i.type)}</td><td class="wrap">${df(i.value)}</td><td>${shortTime(i.firstSeen)}</td></tr>`).join("");
   panel.insertAdjacentHTML("beforeend", `
     <div class="cfg-section">
       <h4>Campaigns <span class="muted">attackers clustered by origin + intent</span></h4>
@@ -608,7 +621,7 @@ async function renderCti() {
       </h4>
       <p class="cfg-note">Correlates our observed IPs/usernames/URLs against external leak/paste/breach feeds. Set <code>DARKWEB_FEEDS</code> (and optionally <code>DARKWEB_PROXY</code> for Tor/.onion).</p>
       <table><thead><tr><th>Indicator</th><th>Type</th><th>Source</th><th>Context</th></tr></thead><tbody>
-        ${(darkweb.hits || []).map((h) => `<tr><td class="hot">${esc(h.indicator)}</td><td>${esc(h.type)}</td><td class="wrap">${esc(h.source)}</td><td class="wrap muted">${esc(h.context)}</td></tr>`).join("") || '<tr><td colspan="4" class="empty">no correlations (configure DARKWEB_FEEDS)</td></tr>'}
+        ${(darkweb.hits || []).map((h) => `<tr><td class="hot wrap">${df(h.indicator)}</td><td>${esc(h.type)}</td><td class="wrap">${df(h.source)}</td><td class="wrap muted">${df(h.context)}</td></tr>`).join("") || '<tr><td colspan="4" class="empty">no correlations (configure DARKWEB_FEEDS)</td></tr>'}
       </tbody></table>
     </div>`);
   const dw = document.getElementById("dwRefresh");
@@ -635,9 +648,9 @@ async function renderDarkweb() {
   const rows = items.map((i) => `<tr>
     <td>${shortTime(i.at)}</td>
     <td>${pill("darkweb", "dark-web")} ${kindPill(i.kind)}</td>
-    <td class="hot wrap">${esc(i.title)}${(i.tags && i.tags.length) ? " " + i.tags.map((t) => pill("recon", t)).join(" ") : ""}</td>
-    <td class="wrap muted">${esc(i.detail)}</td>
-    <td class="wrap muted">${esc(i.source)}</td>
+    <td class="hot wrap">${df(i.title)}${(i.tags && i.tags.length) ? " " + i.tags.map((t) => pill("recon", t)).join(" ") : ""}</td>
+    <td class="wrap muted">${df(i.detail)}</td>
+    <td class="wrap muted">${df(i.source)}</td>
   </tr>`).join("");
 
   panel.innerHTML = `
