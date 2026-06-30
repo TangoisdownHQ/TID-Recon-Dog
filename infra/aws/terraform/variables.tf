@@ -90,6 +90,16 @@ variable "threat_feeds" {
   default     = "https://feodotracker.abuse.ch/downloads/ipblocklist.txt,https://lists.blocklist.de/lists/all.txt,https://raw.githubusercontent.com/stamparm/ipsum/master/levels/4.txt"
 }
 
+# Auto-block every IP in threat_feeds on a schedule. OFF by default: feeds are
+# fetched for the CTI view but nobody is blocked until an operator explicitly
+# ingests them. Leave false unless you really want blanket feed-driven blocking
+# (public lists can include management/health-check IPs and lock you out).
+variable "threat_feeds_autoblock" {
+  description = "Auto-block all THREAT_FEEDS IPs on a schedule (THREAT_FEEDS_AUTOBLOCK)."
+  type        = bool
+  default     = false
+}
+
 # Feeds correlated against our own observed IOCs (IPs/usernames/URLs).
 variable "darkweb_feeds" {
   description = "Comma-separated feeds for IOC correlation (DARKWEB_FEEDS)."

@@ -139,6 +139,28 @@ export async function blockIp(ip: string) {
   }
 }
 
+/**
+ * Block many IPs in a single read-modify-write. Used by feed ingestion, which
+ * would otherwise rewrite controls.json once per IP — tens of thousands of
+ * serial file writes that can pin the host. Returns how many were newly added.
+ */
+export async function blockIps(ips: string[]): Promise<number> {
+  const state = await readControlState();
+  const existing = new Set(state.blockedIps);
+  let added = 0;
+  for (const ip of ips) {
+    if (!existing.has(ip)) {
+      existing.add(ip);
+      added += 1;
+    }
+  }
+  if (added > 0) {
+    state.blockedIps = [...existing];
+    await writeControlState(state);
+  }
+  return added;
+}
+
 export async function unblockIp(ip: string) {
   const state = await readControlState();
   state.blockedIps = state.blockedIps.filter((entry) => entry !== ip);

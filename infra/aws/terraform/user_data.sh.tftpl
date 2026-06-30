@@ -33,6 +33,9 @@ services:
 %{ if threat_feeds != "" ~}
       - THREAT_FEEDS=${threat_feeds}
 %{ endif ~}
+%{ if threat_feeds_autoblock ~}
+      - THREAT_FEEDS_AUTOBLOCK=true
+%{ endif ~}
 %{ if darkweb_feeds != "" ~}
       - DARKWEB_FEEDS=${darkweb_feeds}
 %{ endif ~}

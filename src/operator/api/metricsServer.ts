@@ -21,7 +21,7 @@ import { listNodes, reportNode, selfReport, FleetNode } from "../fleet.js";
 import { buildStixBundle, buildMispEvent, buildBlocklist } from "../../cti/export.js";
 import { enrichmentProviders } from "../../cti/enrich.js";
 import { forwardingTargets } from "../../cti/forward.js";
-import { feedUrls, ingestFeeds } from "../../cti/feeds.js";
+import { feedUrls, ingestFeeds, autoBlockEnabled } from "../../cti/feeds.js";
 import { refreshDarkweb, readDarkwebHits, darkwebConfigured, buildDarkwebFeed } from "../../cti/darkweb.js";
 import {
   isValidAction,
@@ -389,8 +389,10 @@ export async function startOperatorServer(): Promise<OperatorServerHandle> {
     setInterval(() => void refreshDarkweb(), dwRefresh);
   }
   // Auto-ingest threat-intel blocklists into the auto-block list on the same
-  // cadence (defaults to 6h) when THREAT_FEEDS is set.
-  if (feedUrls().length) {
+  // cadence (defaults to 6h). Opt-in only: requires THREAT_FEEDS_AUTOBLOCK=true.
+  // Without it, configuring THREAT_FEEDS does NOT block anyone — operators block
+  // explicitly via POST /api/cti/ingest-feeds or the control endpoint.
+  if (feedUrls().length && autoBlockEnabled()) {
     const fiRefresh = Math.max(15, Number(process.env.THREAT_FEEDS_MINUTES) || 360) * 60_000;
     setTimeout(() => void ingestFeeds(), 20_000);
     setInterval(() => void ingestFeeds(), fiRefresh);

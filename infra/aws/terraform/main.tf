@@ -118,7 +118,8 @@ resource "aws_instance" "honeypot" {
     decoy_ports_tcp    = var.decoy_ports_tcp
     ai_model_url       = var.ai_model_url
     ai_model           = var.ai_model
-    threat_feeds       = var.threat_feeds
+    threat_feeds           = var.threat_feeds
+    threat_feeds_autoblock = var.threat_feeds_autoblock
     darkweb_feeds      = var.darkweb_feeds
     darkweb_news_feeds = var.darkweb_news_feeds
     darkweb_proxy      = var.darkweb_proxy
