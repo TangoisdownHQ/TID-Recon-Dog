@@ -143,7 +143,7 @@ async function renderFeed() {
   const body = shown.map((r) => `<tr data-attacker="${esc(r.attackerId)}">
     <td>${shortTime(r.at)}</td>
     <td>${esc(r.service)}</td>
-    <td>${esc(r.sourceIp)}</td>
+    <td>${df(r.sourceIp)}</td>
     <td>${pill(r.intent, r.intent)}</td>
     <td>${esc(r.score)}</td>
   </tr>`).join("");
@@ -166,7 +166,7 @@ async function renderAttackers() {
   const panel = document.getElementById("panel");
   if (!rows.length) { panel.innerHTML = '<div class="empty">No attackers profiled yet.</div>'; return; }
   const body = rows.map((r) => `<tr data-attacker="${esc(r.id)}">
-    <td>${esc(r.sourceIp)}</td>
+    <td>${df(r.sourceIp)}</td>
     <td>${esc(r.country)}</td>
     <td>${pill(r.risk, r.risk)}</td>
     <td>${pill(r.intent, r.intent)}</td>
@@ -187,7 +187,7 @@ async function renderSessions() {
   const body = rows.slice().reverse().map((r) => `<tr data-session="${esc(r.id)}">
     <td>${esc(r.id.slice(0, 8))}</td>
     <td>${esc(r.service)}</td>
-    <td>${esc(r.ip)}</td>
+    <td>${df(r.ip)}</td>
     <td>${esc(r.status)}</td>
     <td>${esc(r.currentAction)}</td>
     <td>${esc(r.intent || "—")}</td>
@@ -659,7 +659,8 @@ async function renderDarkweb() {
         <span class="pill ${feed.configured ? "recon" : "high"}">${feed.configured ? "feeds configured" : "not configured"}</span>
         <button class="act sm" id="dwFeedRefresh">refresh</button>
       </h4>
-      <p class="cfg-note">External dark-web intel — leak/breach announcements, marketplace listings, actor chatter, plus correlations of our own captured IOCs. Every row is tagged <span class="pill darkweb">dark-web</span> to mark it as external, not honeypot-observed. Set <code>DARKWEB_FEEDS</code> and/or <code>DARKWEB_NEWS_FEEDS</code> (optionally <code>DARKWEB_PROXY</code> for Tor/.onion).</p>
+      <p class="cfg-note">External dark-web / threat intel pulled from configured feeds. Every row is tagged <span class="pill darkweb">dark-web</span> to mark it as external, not honeypot-observed. The <b>Headline / Indicator</b> column says what happened, <b>Detail</b> gives context, and <b>Feed</b> is the source. URLs/IPs are <b>defanged</b> (hxxp://, [.]) — they are intentionally not clickable; never open them outside a sandbox.</p>
+      <p class="cfg-note" style="margin-top:4px">Kinds: ${kindPill("breach")} data breach / hack · ${kindPill("leak")} ransomware leak-site listing or credential dump · ${kindPill("listing")} item for sale on a market · ${kindPill("chatter")} forum/channel discussion · ${kindPill("news")} general security news · ${kindPill("correlation")} one of <i>our</i> captured IOCs seen in an external feed. Set <code>DARKWEB_FEEDS</code>/<code>DARKWEB_NEWS_FEEDS</code> (optionally <code>DARKWEB_PROXY</code> for Tor/.onion).</p>
       <div class="kpis" style="margin-bottom:12px">${countCards}</div>
       <table><thead><tr><th>Time</th><th>Source</th><th>Headline / Indicator</th><th>Detail</th><th>Feed</th></tr></thead>
         <tbody>${rows || '<tr><td colspan="5" class="empty">no dark-web items yet (configure DARKWEB_FEEDS / DARKWEB_NEWS_FEEDS, then refresh)</td></tr>'}</tbody></table>

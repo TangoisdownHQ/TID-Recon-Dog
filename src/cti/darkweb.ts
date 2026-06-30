@@ -244,6 +244,27 @@ function pickTags(o: any): string[] | undefined {
   return t.length ? t : undefined;
 }
 
+// Ransomware/leak-site tracker entries (e.g. ransomware.live) carry a victim
+// and a threat-actor group but a sparse/"N/A" description — so the raw fields
+// read like a bare link. Synthesize a human-readable headline + summary that
+// says what actually happened. Returns null for non-leak-site shapes.
+function leakSiteItem(o: any): { title: string; summary: string; kind: DarkwebNewsKind } | null {
+  const group = o.group_name || o.group;
+  const victim = o.post_title || o.victim || o.company || o.name;
+  if (!group || !victim) return null;
+  const country = o.country ? String(o.country).toUpperCase() : "";
+  const sector = o.activity && o.activity !== "Not Found" ? String(o.activity) : "";
+  const when = o.discovered || o.published || o.date || "";
+  const descRaw = String(o.description || "").trim();
+  const desc = descRaw && !/^n\/?a$/i.test(descRaw) ? descRaw : "";
+  const where = [sector, country].filter(Boolean).join(", ");
+  const parts = [`Ransomware leak-site listing by the "${group}" group.`, `Claimed victim: ${victim}.`];
+  if (where) parts.push(`(${where})`);
+  if (when) parts.push(`Listed ${String(when).slice(0, 10)}.`);
+  if (desc) parts.push(`Notes: ${desc}`);
+  return { title: `${group} → ${victim}`, summary: parts.join(" "), kind: "leak" };
+}
+
 // Minimal XML helpers (no XML dep) — enough to lift <item>/<entry> fields.
 const stripCdata = (s: string): string => s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1");
 const decodeEntities = (s: string): string =>
@@ -279,7 +300,13 @@ function parseNews(body: string, source: string, now: string): DarkwebNewsItem[]
     out.push({ id: newsId(source, title), title, summary, source, kind: k, at: when, tags: tagList });
   };
   const pushObj = (o: any) => {
-    if (o && typeof o === "object") push(pickTitle(o), pickSummary(o), pickKind(o), pickTags(o), pickAt(o));
+    if (!o || typeof o !== "object") return;
+    const leak = leakSiteItem(o);
+    if (leak) {
+      push(leak.title, leak.summary, leak.kind, pickTags(o), pickAt(o));
+      return;
+    }
+    push(pickTitle(o), pickSummary(o), pickKind(o), pickTags(o), pickAt(o));
   };
 
   const trimmed = body.trim();
