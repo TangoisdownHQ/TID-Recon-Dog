@@ -1,5 +1,6 @@
 import fs from "fs/promises";
 import path from "path";
+import { ActivitySummary } from "./activitySummary.js";
 
 export type AlertPayload = {
   at: string;
@@ -12,6 +13,10 @@ export type AlertPayload = {
   score: number;
   services: string[];
   recent_events: string[];
+  // Plain-language "what happened" + structured highlights. Optional so older
+  // alerts.jsonl lines without them still parse.
+  summary?: string;
+  highlights?: ActivitySummary;
 };
 
 const alertLogPath = path.resolve("runtime", "alerts.jsonl");
@@ -69,6 +74,7 @@ export async function maybeFireAlert(params: {
   score: number;
   services: string[];
   recentEvents: string[];
+  highlights?: ActivitySummary;
 }) {
   // Only fire on actual risk escalation, not de-escalation
   const rankOf = (r: string) => (r === "high" ? 2 : r === "medium" ? 1 : 0);
@@ -85,6 +91,8 @@ export async function maybeFireAlert(params: {
     score: params.score,
     services: params.services,
     recent_events: params.recentEvents.slice(-3),
+    summary: params.highlights?.headline,
+    highlights: params.highlights,
   };
 
   await writeAlertLog(payload);

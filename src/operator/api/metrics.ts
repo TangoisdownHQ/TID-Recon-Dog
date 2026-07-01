@@ -6,6 +6,7 @@ import {
 } from "../../utils/logger.js";
 import { readControlState } from "../controlPlane.js";
 import { readAlerts } from "../alertHook.js";
+import { describeRequest } from "../activitySummary.js";
 import { config } from "../../config/config.js";
 
 type CountMap = Record<string, number>;
@@ -172,6 +173,7 @@ export async function buildFeed(limit = 50) {
       action: t.action,
       request: (t.request || "").slice(0, 240),
       response: (t.response || "").slice(0, 240),
+      label: describeRequest(t.request || ""),
       sessionId: t.sessionId,
       attackerId: t.attackerId,
     }));

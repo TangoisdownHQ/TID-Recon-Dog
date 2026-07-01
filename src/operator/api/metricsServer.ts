@@ -9,7 +9,7 @@ import { Server } from "http";
 import { config } from "../../config/config.js";
 import { formatConsole } from "../../utils/logger.js";
 import { ASCII_LOGO } from "../../utils/logo.js";
-import { listAttackers, getAttackerById } from "../../deception_engine/state/attacker_memory.js";
+import { listAttackers, getAttackerById, summarizeAttacker } from "../../deception_engine/state/attacker_memory.js";
 import { readSessionSnapshots } from "../../utils/logger.js";
 import { readTranscripts } from "../../deception_engine/logging/transcript_store.js";
 import { readAlerts } from "../alertHook.js";
@@ -152,6 +152,8 @@ export async function startOperatorServer(): Promise<OperatorServerHandle> {
           connections: a.counters.connections,
           authAttempts: a.counters.authAttempts,
           commands: a.counters.commands,
+          uploads: a.counters.uploads,
+          summary: summarizeAttacker(a).headline,
         }))
         .sort((a, b) => b.totalScore - a.totalScore)
     );
@@ -165,7 +167,7 @@ export async function startOperatorServer(): Promise<OperatorServerHandle> {
       res.status(404).json({ error: "not found" });
       return;
     }
-    res.json(attacker);
+    res.json({ ...attacker, activity: summarizeAttacker(attacker) });
   });
 
   app.get("/api/sessions", async (_req, res) => {

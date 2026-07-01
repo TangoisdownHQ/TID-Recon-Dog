@@ -146,6 +146,7 @@ async function renderFeed() {
     <td>${df(r.sourceIp)}</td>
     <td>${pill(r.intent, r.intent)}</td>
     <td>${esc(r.score)}</td>
+    <td class="wrap">${r.label ? `<span class="pill ${r.intent === "exploitation" ? "high" : "recon"}">${esc(r.label)}</span> ` : ""}<span class="muted">${df((r.request || "").slice(0, 90))}</span></td>
   </tr>`).join("");
   panel.innerHTML = `
     <div class="control-row" style="margin-bottom:10px">
@@ -153,8 +154,8 @@ async function renderFeed() {
       <span class="muted">${shown.length}/${rows.length} · click a row for detail</span>
     </div>
     <table><thead><tr>
-      <th>Time</th><th>Service</th><th>Source IP</th><th>Intent</th><th>Score</th>
-    </tr></thead><tbody>${body || '<tr><td colspan="5" class="empty">no matches</td></tr>'}</tbody></table>`;
+      <th>Time</th><th>Service</th><th>Source IP</th><th>Intent</th><th>Score</th><th>Activity</th>
+    </tr></thead><tbody>${body || '<tr><td colspan="6" class="empty">no matches</td></tr>'}</tbody></table>`;
   const input = document.getElementById("feedFilter");
   input.oninput = (e) => { feedFilter = e.target.value; };
   if (hadFocus) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
@@ -172,9 +173,10 @@ async function renderAttackers() {
     <td>${pill(r.intent, r.intent)}</td>
     <td>${esc(r.totalScore)}</td>
     <td>${shortTime(r.lastSeenAt)}</td>
+    <td class="wrap muted">${esc(r.summary || "")}</td>
   </tr>`).join("");
   panel.innerHTML = `<table><thead><tr>
-    <th>Source IP</th><th>Geo</th><th>Risk</th><th>Intent</th><th>Score</th><th>Last Seen</th>
+    <th>Source IP</th><th>Geo</th><th>Risk</th><th>Intent</th><th>Score</th><th>Last Seen</th><th>What happened</th>
   </tr></thead><tbody>${body}</tbody></table>
   <p class="cfg-note" style="margin-top:8px">Click a row for full profile, captured creds, commands & actions.</p>`;
   wireRowDrawer(panel, "attacker");
@@ -235,9 +237,30 @@ function alertNarrative(a) {
   else if (a.risk === "high") rec = "High-risk escalation — recommend tarpit/stall and close monitoring.";
   else if (a.intent === "brute_force") rec = "Credential brute-forcing — consider decoy_success to observe post-login behavior, or block.";
   else rec = "Continue monitoring; no immediate action required.";
+  // Prefer the server-computed plain-language summary when present.
+  const what = a.summary ? `\n\nWhat happened:\n${a.summary}` : (ev ? `\n\nRecent activity:\n${ev}` : "");
   return `${a.source_ip} escalated ${a.previous_risk} → ${a.risk}. Behavior classified as ${a.intent} (score ${a.score}) across ${svc}.`
-    + (ev ? `\n\nRecent activity:\n${ev}` : "")
+    + what
     + `\n\n${rec}`;
+}
+
+// Render the structured highlights block (credentials / files / uploads /
+// commands / exploits) shared by the alert and attacker drawers.
+function highlightsHtml(h) {
+  if (!h) return "";
+  const list = (label, items, cls) =>
+    (items && items.length)
+      ? `<div class="hl-row"><span class="hl-k">${label}</span><span class="hl-v ${cls || ""}">${items.map((x) => `<code>${df(String(x))}</code>`).join(" ")}</span></div>`
+      : "";
+  const exploits = (h.exploits && h.exploits.length)
+    ? `<div class="hl-row"><span class="hl-k">Exploits</span><span class="hl-v">${h.exploits.map((e) => `<span class="pill high">${esc(e.name)}</span>`).join(" ")}</span></div>`
+    : "";
+  const inner = exploits
+    + list("Credentials", h.credentials)
+    + list("Files touched", h.filesTouched, "hot")
+    + list("Uploads", h.uploads, "hot")
+    + list("Commands", h.commands);
+  return inner ? `<div class="hl-box">${inner}</div>` : "";
 }
 
 function openAlertDrawer(a) {
@@ -245,6 +268,7 @@ function openAlertDrawer(a) {
   const body = document.getElementById("drawerBody");
   body.innerHTML = `
     <div class="alert-what"><div class="aw-h">What happened</div><div class="aw-b">${esc(alertNarrative(a))}</div></div>
+    ${highlightsHtml(a.highlights)}
     <div class="drawer-actions">
       <input id="injMsg" class="txt" placeholder="message to ${esc(a.source_ip)}…" style="flex:1" />
       <button class="act sm" id="injBtn">Inject</button>
@@ -270,13 +294,14 @@ async function renderAlerts() {
   if (!alertCache.length) { panel.innerHTML = '<div class="empty">No escalations yet.</div>'; return; }
   const body = alertCache.map((r, i) => `<tr data-alert="${i}">
     <td>${shortTime(r.at)}</td>
-    <td>${esc(r.source_ip)}</td>
+    <td>${df(r.source_ip)}</td>
     <td>${pill(r.previous_risk, r.previous_risk)} → ${pill(r.risk, r.risk)}</td>
     <td>${pill(r.intent, r.intent)}</td>
     <td>${esc(r.score)}</td>
+    <td class="wrap muted">${esc(r.summary || alertNarrative(r).split("\n")[0])}</td>
   </tr>`).join("");
   panel.innerHTML = `<table><thead><tr>
-    <th>Time</th><th>Source IP</th><th>Escalation</th><th>Intent</th><th>Score</th>
+    <th>Time</th><th>Source IP</th><th>Escalation</th><th>Intent</th><th>Score</th><th>What happened</th>
   </tr></thead><tbody>${body}</tbody></table>`;
   panel.querySelectorAll("tr[data-alert]").forEach((tr) => {
     tr.onclick = () => openAlertDrawer(alertCache[+tr.getAttribute("data-alert")]);
@@ -504,7 +529,11 @@ function openDrawer(title, detail) {
          <button class="act sm danger" id="blkBtn">Block IP</button>
        </div>`
     : "";
-  body.innerHTML = actions + `<pre class="jsonview">${highlightJson(detail)}</pre>`;
+  const activity = detail && typeof detail === "object" ? detail.activity : null;
+  const activityBlock = activity
+    ? `<div class="alert-what"><div class="aw-h">What happened</div><div class="aw-b">${esc(activity.headline)}</div></div>${highlightsHtml(activity)}`
+    : "";
+  body.innerHTML = actions + activityBlock + `<pre class="jsonview">${highlightJson(detail)}</pre>`;
   if (sourceIp) {
     document.getElementById("injBtn").onclick = async () => {
       const m = document.getElementById("injMsg").value;

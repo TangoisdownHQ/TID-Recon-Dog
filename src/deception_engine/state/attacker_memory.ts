@@ -14,6 +14,7 @@ import { ResponderServiceName } from "../../responders/serviceNames.js";
 import { sanitizeText } from "../../responders/safety.js";
 import { GeoResult, lookupGeo } from "../../utils/geoip.js";
 import { maybeFireAlert } from "../../operator/alertHook.js";
+import { summarizeActivity, ActivitySummary, ActivityInput } from "../../operator/activitySummary.js";
 
 export type AttackerIntent = "unknown" | "recon" | "brute_force" | "exploitation";
 
@@ -345,9 +346,29 @@ export async function updateAttackerMemory(params: {
     score: attacker.totalScore,
     services: Object.keys(attacker.services),
     recentEvents: attacker.recentEvents,
+    highlights: summarizeAttacker(attacker),
   });
 
   return { attacker, serviceMemory, persona, assessment };
+}
+
+/** Aggregate a profile's captured activity into a plain-language summary. */
+export function summarizeAttacker(profile: AttackerProfile): ActivitySummary {
+  const usernames = new Set<string>();
+  const commands: string[] = [];
+  for (const svc of Object.values(profile.services)) {
+    if (!svc) continue;
+    for (const u of svc.usernames || []) usernames.add(u);
+    for (const c of svc.commandHistory || []) commands.push(c);
+  }
+  const input: ActivityInput = {
+    events: profile.recentEvents,
+    counters: profile.counters,
+    usernames: Array.from(usernames),
+    commands,
+    services: Object.keys(profile.services),
+  };
+  return summarizeActivity(input);
 }
 
 export async function listAttackers(): Promise<AttackerProfile[]> {
