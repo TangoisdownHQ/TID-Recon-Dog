@@ -81,6 +81,32 @@ let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
 const PERSONA_ROTATE_HOURS = parseInt(process.env.PERSONA_ROTATE_AFTER_HOURS || "0", 10);
 
+// Attacker-profile eviction. attackers.json is parsed on operator reads and grows
+// with unique source IPs; over weeks that's unbounded. Drop stale low-value
+// profiles but ALWAYS keep high-value intel (score >= keep threshold) regardless
+// of age. A hard cap is the final backstop.
+const ATTACKER_RETENTION_DAYS = parseInt(process.env.ATTACKER_RETENTION_DAYS || "14", 10);
+const ATTACKER_KEEP_SCORE = parseInt(process.env.ATTACKER_KEEP_SCORE || "45", 10);
+const MAX_ATTACKERS = parseInt(process.env.MAX_ATTACKERS || "5000", 10);
+
+function evictAttackers() {
+  const cutoff = Date.now() - ATTACKER_RETENTION_DAYS * 86400 * 1000;
+  // Age-based: drop stale, low-value profiles; retain anything worth keeping.
+  for (const [id, a] of attackers) {
+    if (a.totalScore >= ATTACKER_KEEP_SCORE) continue;
+    if (new Date(a.lastSeenAt).getTime() < cutoff) attackers.delete(id);
+  }
+  // Hard cap backstop: drop lowest-value first (score asc, then oldest).
+  if (attackers.size > MAX_ATTACKERS) {
+    const ordered = Array.from(attackers.values()).sort(
+      (x, y) => x.totalScore - y.totalScore || x.lastSeenAt.localeCompare(y.lastSeenAt)
+    );
+    for (const a of ordered.slice(0, attackers.size - MAX_ATTACKERS)) {
+      attackers.delete(a.id);
+    }
+  }
+}
+
 function buildFingerprint(sourceIp: string) {
   return crypto.createHash("sha256").update(sourceIp).digest("hex");
 }
@@ -169,6 +195,7 @@ async function ensureRuntimeDir() {
 
 async function doFlush() {
   await ensureRuntimeDir();
+  evictAttackers();
   await fs.writeFile(attackerStatePath, JSON.stringify(Array.from(attackers.values()), null, 2), "utf8");
 }
 
@@ -196,6 +223,7 @@ async function hydrate() {
   } catch {
     // start clean
   }
+  evictAttackers(); // prune stale profiles loaded from a long-lived state file
   hydrated = true;
 }
 
