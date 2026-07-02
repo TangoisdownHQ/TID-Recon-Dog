@@ -14,6 +14,21 @@ const sessions = new Map<string, SessionRecord>();
 let hydrated = false;
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
+// Every connection creates a session; without eviction the Map (and sessions.json,
+// which is parsed on every operator request) grew unbounded and saturated the
+// event loop. Keep the most-recent MAX_SESSIONS by lastSeenAt.
+const MAX_SESSIONS = parseInt(process.env.MAX_SESSIONS || "750", 10);
+
+function pruneSessions() {
+  if (sessions.size <= MAX_SESSIONS) return;
+  const ordered = Array.from(sessions.values()).sort((a, b) =>
+    a.lastSeenAt.localeCompare(b.lastSeenAt)
+  );
+  for (const stale of ordered.slice(0, sessions.size - MAX_SESSIONS)) {
+    sessions.delete(stale.id);
+  }
+}
+
 async function hydrateSessions() {
   if (hydrated) {
     return;
@@ -102,6 +117,7 @@ export async function upsertSession(params: {
   record.events.push(`${now} ${params.detail}`);
 
   sessions.set(id, record);
+  pruneSessions();
   scheduleFlush();
 
   return record;

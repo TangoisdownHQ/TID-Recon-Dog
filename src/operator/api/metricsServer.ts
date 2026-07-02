@@ -371,6 +371,16 @@ export async function startOperatorServer(): Promise<OperatorServerHandle> {
 
   app.use(express.static(webDir, { index: "index.html" }));
 
+  // Malformed percent-encoded paths throw URIError during route matching;
+  // answer 400 instead of leaving it unhandled.
+  app.use((err: Error, _req: express.Request, res: express.Response, next: (e?: unknown) => void) => {
+    if (err instanceof URIError) {
+      res.status(400).json({ error: "bad request" });
+      return;
+    }
+    next(err);
+  });
+
   const server = await new Promise<Server>((resolve, reject) => {
     const instance = app.listen(config.operator.port, config.operator.host, () => resolve(instance));
     instance.once("error", reject);

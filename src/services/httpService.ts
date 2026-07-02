@@ -872,6 +872,17 @@ export async function startHttpService() {
     }
   });
 
+  // Scanners send malformed percent-encoded paths (e.g. "%%32%65" traversal
+  // evasion) that Express can't decode, throwing URIError during route matching.
+  // Answer like a real nginx would (400) instead of leaving it unhandled.
+  app.use((err: Error, _req: Request, res: Response, next: (e?: unknown) => void) => {
+    if (err instanceof URIError) {
+      res.status(400).type("html").send(nginxErrorPage(400, serverToken));
+      return;
+    }
+    next(err);
+  });
+
   const server = await new Promise<Server>((resolve, reject) => {
     const instance = app.listen(config.services.http.port, config.services.http.host, () => resolve(instance));
     instance.once("error", reject);
