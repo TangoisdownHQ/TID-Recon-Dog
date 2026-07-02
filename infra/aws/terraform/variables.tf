@@ -5,9 +5,34 @@ variable "region" {
 }
 
 variable "instance_type" {
-  description = "EC2 instance type for the honeypot host."
+  description = "Deprecated (single-host). Fleet uses node_instance_type / master_instance_type."
   type        = string
   default     = "t3.small"
+}
+
+variable "node_instance_type" {
+  description = "EC2 instance type for each persona node in the fleet."
+  type        = string
+  default     = "t3.micro"
+}
+
+variable "master_instance_type" {
+  description = "EC2 instance type for the master node (also aggregates the fleet operator plane)."
+  type        = string
+  default     = "t3.small"
+}
+
+variable "master_persona" {
+  description = "Which persona doubles as the fleet master (hosts the aggregating operator plane)."
+  type        = string
+  default     = "jump-host"
+}
+
+variable "operator_token" {
+  description = "Shared operator/fleet auth token. Leave empty to auto-generate (see the operator_token output)."
+  type        = string
+  default     = ""
+  sensitive   = true
 }
 
 variable "name" {

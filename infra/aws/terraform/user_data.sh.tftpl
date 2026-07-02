@@ -21,15 +21,25 @@ services:
   honeypot:
     image: ${image_uri}
     restart: unless-stopped
+    command: ${jsonencode(concat(["node", "dist/index.js", "start"], split(" ", services)))}
     ports:
-%{ for p in decoy_ports_tcp ~}
+%{ for p in ports_tcp ~}
       - "${p.host}:${p.container}"
 %{ endfor ~}
+%{ if udp_snmp ~}
       - "161:16100/udp"
-      - "127.0.0.1:9090:9090"   # operator plane: localhost only, reach via SSM
+%{ endif ~}
+      - "${operator_publish}"   # operator plane
     environment:
       - OPERATOR_HOST=0.0.0.0
       - OPERATOR_PORT=9090
+      - OPERATOR_TOKEN=${operator_token}
+      - NODE_NAME=${node_name}
+      - NODE_REGION=${node_region}
+%{ if fleet_master_url != "" ~}
+      - FLEET_MASTER_URL=${fleet_master_url}
+      - FLEET_TOKEN=${fleet_token}
+%{ endif ~}
 %{ if threat_feeds != "" ~}
       - THREAT_FEEDS=${threat_feeds}
 %{ endif ~}

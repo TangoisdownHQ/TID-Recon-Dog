@@ -55,47 +55,8 @@ resource "aws_iam_instance_profile" "instance" {
   role = aws_iam_role.instance.name
 }
 
-# --- Security group: decoy ports open to the world; no admin SSH ingress -----
-resource "aws_security_group" "honeypot" {
-  name        = "${var.name}-sg"
-  description = "TID-Recon-Dog decoy surface"
-  vpc_id      = data.aws_vpc.default.id
-
-  dynamic "ingress" {
-    for_each = var.decoy_ports_tcp
-    content {
-      description = "decoy tcp ${ingress.value.host}"
-      from_port   = ingress.value.host
-      to_port     = ingress.value.host
-      protocol    = "tcp"
-      cidr_blocks = ["0.0.0.0/0"]
-    }
-  }
-
-  ingress {
-    description = "decoy snmp"
-    from_port   = 161
-    to_port     = 161
-    protocol    = "udp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    description = "fallback admin ssh (primary access is SSM)"
-    from_port   = 2200
-    to_port     = 2200
-    protocol    = "tcp"
-    cidr_blocks = [var.admin_cidr]
-  }
-
-  egress {
-    description = "all outbound"
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-}
+# The decoy surface is now a fleet — one specialized node per persona — defined
+# in fleet.tf. Shared plumbing (VPC, ECR, IAM, image locals) stays here.
 
 locals {
   registry  = "${data.aws_caller_identity.me.account_id}.dkr.ecr.${var.region}.amazonaws.com"
@@ -103,43 +64,3 @@ locals {
 }
 
 data "aws_caller_identity" "me" {}
-
-resource "aws_instance" "honeypot" {
-  ami                    = data.aws_ssm_parameter.al2023.value
-  instance_type          = var.instance_type
-  subnet_id              = data.aws_subnets.default.ids[0]
-  vpc_security_group_ids = [aws_security_group.honeypot.id]
-  iam_instance_profile   = aws_iam_instance_profile.instance.name
-
-  user_data = templatefile("${path.module}/user_data.sh.tftpl", {
-    region             = var.region
-    registry           = local.registry
-    image_uri          = local.image_uri
-    decoy_ports_tcp    = var.decoy_ports_tcp
-    ai_model_url       = var.ai_model_url
-    ai_model           = var.ai_model
-    threat_feeds           = var.threat_feeds
-    threat_feeds_autoblock = var.threat_feeds_autoblock
-    darkweb_feeds      = var.darkweb_feeds
-    darkweb_news_feeds = var.darkweb_news_feeds
-    darkweb_proxy      = var.darkweb_proxy
-  })
-
-  root_block_device {
-    volume_size = var.root_volume_gb
-    volume_type = "gp3"
-    encrypted   = true
-  }
-
-  metadata_options {
-    http_tokens = "required" # IMDSv2 only
-  }
-
-  tags = { Name = var.name }
-}
-
-resource "aws_eip" "honeypot" {
-  count    = var.assign_eip ? 1 : 0
-  instance = aws_instance.honeypot.id
-  domain   = "vpc"
-}
