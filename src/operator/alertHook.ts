@@ -55,9 +55,11 @@ async function fireTelegram(payload: AlertPayload) {
   const chatId = process.env.TELEGRAM_CHAT_ID;
   if (!token || !chatId) return;
   const node = process.env.NODE_NAME ? ` [${process.env.NODE_NAME}]` : "";
+  // Plain text (no parse_mode): summaries/exploit names contain underscores and
+  // brackets that would break Telegram Markdown parsing and drop the alert.
   const lines = [
-    `🚨 *${payload.risk.toUpperCase()} escalation*${node}`,
-    `\`${payload.source_ip}\` · ${payload.intent} · score ${payload.score}`,
+    `🚨 ${payload.risk.toUpperCase()} escalation${node}`,
+    `${payload.source_ip} · ${payload.intent} · score ${payload.score}`,
     `services: ${payload.services.join(", ") || "—"}`,
   ];
   if (payload.summary) lines.push(`\n${payload.summary}`);
@@ -70,7 +72,7 @@ async function fireTelegram(payload: AlertPayload) {
     await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text: lines.join("\n"), parse_mode: "Markdown", disable_web_page_preview: true }),
+      body: JSON.stringify({ chat_id: chatId, text: lines.join("\n"), disable_web_page_preview: true }),
       signal: controller.signal,
     });
     clearTimeout(tid);
