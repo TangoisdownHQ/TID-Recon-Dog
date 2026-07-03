@@ -42,6 +42,10 @@ services:
       - FLEET_MASTER_URL=${fleet_master_url}
       - FLEET_TOKEN=${fleet_token}
 %{ endif ~}
+%{ if telegram_bot_token != "" ~}
+      - TELEGRAM_BOT_TOKEN=${telegram_bot_token}
+      - TELEGRAM_CHAT_ID=${telegram_chat_id}
+%{ endif ~}
 %{ if threat_feeds != "" ~}
       - THREAT_FEEDS=${threat_feeds}
 %{ endif ~}

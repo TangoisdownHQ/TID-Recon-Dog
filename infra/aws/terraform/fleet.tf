@@ -81,6 +81,8 @@ locals {
     darkweb_feeds          = var.darkweb_feeds
     darkweb_news_feeds     = var.darkweb_news_feeds
     darkweb_proxy          = var.darkweb_proxy
+    telegram_bot_token     = var.telegram_bot_token
+    telegram_chat_id       = var.telegram_chat_id
   }
 }
 

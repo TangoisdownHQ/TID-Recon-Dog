@@ -41,6 +41,23 @@ variable "backup_bucket" {
   default     = ""
 }
 
+# --- Telegram alerts (optional) ----------------------------------------------
+# When both are set, high-risk escalations are pushed to Telegram from every node.
+# Do NOT hardcode the token in a committed .tf/.tfvars — pass it at apply time:
+#   TF_VAR_telegram_bot_token=123:ABC TF_VAR_telegram_chat_id=-100123 terraform apply
+variable "telegram_bot_token" {
+  description = "Telegram Bot API token from @BotFather (empty = disabled)."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "telegram_chat_id" {
+  description = "Telegram chat/channel ID to send alerts to (empty = disabled)."
+  type        = string
+  default     = ""
+}
+
 variable "name" {
   description = "Name prefix for created resources."
   type        = string
