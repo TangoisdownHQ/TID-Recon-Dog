@@ -36,6 +36,8 @@ services:
       - OPERATOR_TOKEN=${operator_token}
       - NODE_NAME=${node_name}
       - NODE_REGION=${node_region}
+      - NODE_PORTS=${node_ports}
+      - NODE_SERVICES=${services}
 %{ if fleet_master_url != "" ~}
       - FLEET_MASTER_URL=${fleet_master_url}
       - FLEET_TOKEN=${fleet_token}
@@ -100,5 +102,78 @@ OnUnitActiveSec=60s
 WantedBy=timers.target
 UNIT
 
+# --- Auto-heal: restart the container if the operator plane wedges -----------
+# Marks the restart reason in the runtime volume so the Fleet tab can show WHY.
+cat >/usr/local/bin/tid-autoheal.sh <<'SH'
+#!/bin/sh
+FAILS=/tmp/tid_health_fails
+CODE=$(curl -s --max-time 8 -o /dev/null -w "%%{http_code}" http://127.0.0.1:9090/healthz 2>/dev/null)
+if [ "$CODE" = "200" ]; then echo 0 > "$FAILS"; exit 0; fi
+N=$(cat "$FAILS" 2>/dev/null || echo 0); N=$((N+1)); echo "$N" > "$FAILS"
+logger -t tid-autoheal "healthz=$CODE consecutive-fail=$N"
+if [ "$N" -ge 3 ]; then
+  logger -t tid-autoheal "restarting honeypot after $N failures"
+  docker run --rm -v opt_tid-runtime:/r alpine sh -c 'echo autoheal > /r/.autoheal-restart' 2>/dev/null || true
+  docker compose -f /opt/tid-compose.yml restart >/dev/null 2>&1
+  echo 0 > "$FAILS"
+fi
+SH
+chmod +x /usr/local/bin/tid-autoheal.sh
+cat >/etc/systemd/system/tid-autoheal.service <<'UNIT'
+[Unit]
+Description=TID auto-heal (restart if operator healthz down)
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/tid-autoheal.sh
+UNIT
+cat >/etc/systemd/system/tid-autoheal.timer <<'UNIT'
+[Unit]
+Description=Run TID auto-heal every minute
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=60s
+[Install]
+WantedBy=timers.target
+UNIT
+
+# --- Backup: archive runtime + logs volumes to S3 daily ----------------------
+%{ if backup_bucket != "" ~}
+cat >/usr/local/bin/tid-backup.sh <<'SH'
+#!/bin/sh
+set -e
+TS=$(date -u +%Y%m%dT%H%M%SZ)
+DEST=s3://${backup_bucket}/nodes/${node_name}/$TS
+TMP=$(mktemp -d)
+for V in opt_tid-runtime opt_tid-logs; do
+  docker run --rm -v $V:/src:ro -v $TMP:/out alpine tar czf /out/$V.tgz -C /src . 2>/dev/null || true
+done
+aws s3 cp "$TMP"/ "$DEST"/ --recursive --region ${region} >/dev/null 2>&1 && \
+  logger -t tid-backup "backed up to $DEST" || logger -t tid-backup "backup FAILED to $DEST"
+rm -rf "$TMP"
+SH
+chmod +x /usr/local/bin/tid-backup.sh
+cat >/etc/systemd/system/tid-backup.service <<'UNIT'
+[Unit]
+Description=TID backup runtime+logs to S3
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/tid-backup.sh
+UNIT
+cat >/etc/systemd/system/tid-backup.timer <<'UNIT'
+[Unit]
+Description=Daily TID S3 backup
+[Timer]
+OnBootSec=1h
+OnUnitActiveSec=24h
+Persistent=true
+[Install]
+WantedBy=timers.target
+UNIT
+%{ endif ~}
+
 systemctl daemon-reload
 systemctl enable --now tid.timer
+systemctl enable --now tid-autoheal.timer
+%{ if backup_bucket != "" ~}
+systemctl enable --now tid-backup.timer
+%{ endif ~}

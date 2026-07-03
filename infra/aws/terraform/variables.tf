@@ -35,6 +35,12 @@ variable "operator_token" {
   sensitive   = true
 }
 
+variable "backup_bucket" {
+  description = "S3 bucket for daily node backups. Empty = <name>-backups-<account_id>. Set \"\" behavior only via override; the bucket must already exist."
+  type        = string
+  default     = ""
+}
+
 variable "name" {
   description = "Name prefix for created resources."
   type        = string

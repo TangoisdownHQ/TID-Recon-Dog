@@ -9,6 +9,7 @@ import fs from "fs/promises";
 import os from "os";
 import path from "path";
 import { buildOverview } from "./api/metrics.js";
+import { getNodeStatus, getNodeNetwork, getNodePorts } from "./nodeStatus.js";
 
 const filePath = path.resolve("runtime", "fleet.json");
 
@@ -22,6 +23,16 @@ export type FleetNode = {
   transcripts: number;
   topCountry: string;
   lastSeen: string;
+  // Identity / exposure — so the Fleet tab shows where each node is and what it exposes.
+  publicIp: string;
+  privateIp: string;
+  hostname: string;
+  ports: string; // comma-separated exposed ports, e.g. "80,554"
+  services: string; // e.g. "http rtsp"
+  // Restart accounting — so flapping nodes are visible with a reason.
+  restarts: number;
+  lastStartAt: string;
+  lastStartReason: string;
 };
 
 export function nodeId(): string {
@@ -55,6 +66,8 @@ export async function listNodes(): Promise<Array<FleetNode & { online: boolean }
 export async function buildSelfReport(): Promise<FleetNode> {
   const o = await buildOverview();
   const byRisk = o.attackers.byRisk as Record<string, number>;
+  const net = await getNodeNetwork();
+  const status = getNodeStatus();
   return {
     nodeId: nodeId(),
     name: process.env.NODE_NAME || nodeId(),
@@ -65,6 +78,14 @@ export async function buildSelfReport(): Promise<FleetNode> {
     transcripts: o.transcripts.total,
     topCountry: o.attackers.byCountry[0]?.key || "?",
     lastSeen: o.generatedAt,
+    publicIp: net.publicIp,
+    privateIp: net.privateIp,
+    hostname: net.hostname,
+    ports: getNodePorts(),
+    services: process.env.NODE_SERVICES || "",
+    restarts: status.startCount,
+    lastStartAt: status.lastStartAt,
+    lastStartReason: status.lastStartReason,
   };
 }
 

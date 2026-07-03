@@ -58,6 +58,43 @@ const df = (s) => esc(defang(s));
 const shortTime = (iso) => { const d = new Date(iso); return isNaN(d) ? "—" : d.toLocaleTimeString(); };
 const pill = (cls, text) => `<span class="pill ${esc(cls)}">${esc(text)}</span>`;
 
+// ---- Client-side pagination (per tab) ------------------------------------
+// Long tables (feed/attackers/sessions/alerts/dark-web) paginate instead of
+// rendering one huge page. State persists across the 4s auto-refresh.
+const PAGE_SIZES = [50, 100, 250];
+const pageState = {};
+function pget(key) { if (!pageState[key]) pageState[key] = { page: 1, size: 50 }; return pageState[key]; }
+function pageStart(key) { const st = pget(key); return (st.page - 1) * st.size; }
+function paginate(rows, key) {
+  const st = pget(key);
+  const total = rows.length;
+  const pages = Math.max(1, Math.ceil(total / st.size));
+  if (st.page > pages) st.page = pages;
+  if (st.page < 1) st.page = 1;
+  const start = (st.page - 1) * st.size;
+  const slice = rows.slice(start, start + st.size);
+  return { slice, controls: pagerHtml(key, st, total, pages, start, slice.length) };
+}
+function pagerHtml(key, st, total, pages, start, shown) {
+  if (total === 0) return "";
+  const sizeSel = `<select class="pgsize" data-size-key="${key}">` +
+    PAGE_SIZES.map((s) => `<option value="${s}" ${s === st.size ? "selected" : ""}>${s}/page</option>`).join("") + `</select>`;
+  let nums = "";
+  const win = 2, lo = Math.max(1, st.page - win), hi = Math.min(pages, st.page + win);
+  if (lo > 1) nums += `<button class="pg" data-pager="1" data-key="${key}">1</button>` + (lo > 2 ? `<span class="pgdots">…</span>` : "");
+  for (let p = lo; p <= hi; p++) nums += `<button class="pg ${p === st.page ? "cur" : ""}" data-pager="${p}" data-key="${key}">${p}</button>`;
+  if (hi < pages) nums += (hi < pages - 1 ? `<span class="pgdots">…</span>` : "") + `<button class="pg" data-pager="${pages}" data-key="${key}">${pages}</button>`;
+  return `<div class="pager">
+    <span class="pginfo">${total ? start + 1 : 0}–${start + shown} of ${total}</span>
+    ${sizeSel}
+    <span class="pgnav">
+      <button class="pg" data-pager="prev" data-key="${key}" ${st.page <= 1 ? "disabled" : ""}>‹ Prev</button>
+      ${nums}
+      <button class="pg" data-pager="next" data-key="${key}" ${st.page >= pages ? "disabled" : ""}>Next ›</button>
+    </span>
+  </div>`;
+}
+
 function setLive(ok) {
   const dot = document.getElementById("liveDot");
   const txt = document.getElementById("liveText");
@@ -140,7 +177,8 @@ async function renderFeed() {
     ? rows.filter((r) => [r.service, r.sourceIp, r.intent, r.action, r.request].join(" ").toLowerCase().includes(f))
     : rows;
   const hadFocus = document.activeElement && document.activeElement.id === "feedFilter";
-  const body = shown.map((r) => `<tr data-attacker="${esc(r.attackerId)}">
+  const { slice, controls } = paginate(shown, "feed");
+  const body = slice.map((r) => `<tr data-attacker="${esc(r.attackerId)}">
     <td>${shortTime(r.at)}</td>
     <td>${esc(r.service)}</td>
     <td>${df(r.sourceIp)}</td>
@@ -151,11 +189,12 @@ async function renderFeed() {
   panel.innerHTML = `
     <div class="control-row" style="margin-bottom:10px">
       <input id="feedFilter" class="txt" placeholder="filter by service / ip / intent / request…" value="${esc(feedFilter)}" style="flex:1" />
-      <span class="muted">${shown.length}/${rows.length} · click a row for detail</span>
+      <span class="muted">${shown.length}/${rows.length} match · click a row for detail</span>
     </div>
     <table><thead><tr>
       <th>Time</th><th>Service</th><th>Source IP</th><th>Intent</th><th>Score</th><th>Activity</th>
-    </tr></thead><tbody>${body || '<tr><td colspan="6" class="empty">no matches</td></tr>'}</tbody></table>`;
+    </tr></thead><tbody>${body || '<tr><td colspan="6" class="empty">no matches</td></tr>'}</tbody></table>
+    ${controls}`;
   const input = document.getElementById("feedFilter");
   input.oninput = (e) => { feedFilter = e.target.value; };
   if (hadFocus) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
@@ -166,7 +205,8 @@ async function renderAttackers() {
   const rows = await api("/api/attackers");
   const panel = document.getElementById("panel");
   if (!rows.length) { panel.innerHTML = '<div class="empty">No attackers profiled yet.</div>'; return; }
-  const body = rows.map((r) => `<tr data-attacker="${esc(r.id)}">
+  const { slice, controls } = paginate(rows, "attackers");
+  const body = slice.map((r) => `<tr data-attacker="${esc(r.id)}">
     <td>${df(r.sourceIp)}</td>
     <td>${esc(r.country)}</td>
     <td>${pill(r.risk, r.risk)}</td>
@@ -178,6 +218,7 @@ async function renderAttackers() {
   panel.innerHTML = `<table><thead><tr>
     <th>Source IP</th><th>Geo</th><th>Risk</th><th>Intent</th><th>Score</th><th>Last Seen</th><th>What happened</th>
   </tr></thead><tbody>${body}</tbody></table>
+  ${controls}
   <p class="cfg-note" style="margin-top:8px">Click a row for full profile, captured creds, commands & actions.</p>`;
   wireRowDrawer(panel, "attacker");
 }
@@ -186,7 +227,8 @@ async function renderSessions() {
   const rows = await api("/api/sessions");
   const panel = document.getElementById("panel");
   if (!rows.length) { panel.innerHTML = '<div class="empty">No sessions recorded yet.</div>'; return; }
-  const body = rows.slice().reverse().map((r) => `<tr data-session="${esc(r.id)}">
+  const { slice, controls } = paginate(rows.slice().reverse(), "sessions");
+  const body = slice.map((r) => `<tr data-session="${esc(r.id)}">
     <td>${esc(r.id.slice(0, 8))}</td>
     <td>${esc(r.service)}</td>
     <td>${df(r.ip)}</td>
@@ -197,7 +239,8 @@ async function renderSessions() {
   </tr>`).join("");
   panel.innerHTML = `<table><thead><tr>
     <th>Session</th><th>Service</th><th>IP</th><th>Status</th><th>Action</th><th>Intent</th><th>Last Seen</th>
-  </tr></thead><tbody>${body}</tbody></table>`;
+  </tr></thead><tbody>${body}</tbody></table>
+  ${controls}`;
   panel.querySelectorAll("tr[data-session]").forEach((tr) => {
     tr.onclick = () => openReplay(tr.getAttribute("data-session"));
   });
@@ -292,7 +335,9 @@ async function renderAlerts() {
   alertCache = await api("/api/alerts");
   const panel = document.getElementById("panel");
   if (!alertCache.length) { panel.innerHTML = '<div class="empty">No escalations yet.</div>'; return; }
-  const body = alertCache.map((r, i) => `<tr data-alert="${i}">
+  const { slice, controls } = paginate(alertCache, "alerts");
+  const start = pageStart("alerts");
+  const body = slice.map((r, i) => `<tr data-alert="${start + i}">
     <td>${shortTime(r.at)}</td>
     <td>${df(r.source_ip)}</td>
     <td>${pill(r.previous_risk, r.previous_risk)} → ${pill(r.risk, r.risk)}</td>
@@ -302,7 +347,8 @@ async function renderAlerts() {
   </tr>`).join("");
   panel.innerHTML = `<table><thead><tr>
     <th>Time</th><th>Source IP</th><th>Escalation</th><th>Intent</th><th>Score</th><th>What happened</th>
-  </tr></thead><tbody>${body}</tbody></table>`;
+  </tr></thead><tbody>${body}</tbody></table>
+  ${controls}`;
   panel.querySelectorAll("tr[data-alert]").forEach((tr) => {
     tr.onclick = () => openAlertDrawer(alertCache[+tr.getAttribute("data-alert")]);
   });
@@ -674,7 +720,9 @@ async function renderDarkweb() {
     `<div class="kpi"><div class="k-label">${esc(k)}</div><div class="k-value" style="font-size:20px">${esc(v)}</div></div>`).join("")
     || '<div class="muted">no items yet</div>';
 
-  const rows = items.map((i, idx) => `<tr data-dw="${idx}">
+  const dwPage = paginate(items, "darkweb");
+  const dwStart = pageStart("darkweb");
+  const rows = dwPage.slice.map((i, k) => `<tr data-dw="${dwStart + k}">
     <td>${shortTime(i.at)}</td>
     <td>${pill("darkweb", "dark-web")} ${kindPill(i.kind)}</td>
     <td class="hot wrap">${df(i.title)}${(i.tags && i.tags.length) ? " " + i.tags.map((t) => pill("recon", t)).join(" ") : ""}</td>
@@ -694,6 +742,7 @@ async function renderDarkweb() {
       <div class="control-row" style="margin-bottom:8px"><span class="muted">${items.length} items · click a row for a mini overview</span></div>
       <table><thead><tr><th>Time</th><th>Source</th><th>Headline / Indicator</th><th>Detail</th><th>Feed</th></tr></thead>
         <tbody>${rows || '<tr><td colspan="5" class="empty">no dark-web items yet (configure DARKWEB_FEEDS / DARKWEB_NEWS_FEEDS, then refresh)</td></tr>'}</tbody></table>
+      ${dwPage.controls}
     </div>`;
 
   panel.querySelectorAll("tr[data-dw]").forEach((tr) => {
@@ -746,21 +795,32 @@ async function renderFleet() {
   const panel = document.getElementById("panel");
   let nodes = [];
   try { nodes = await api("/api/fleet"); } catch (e) {}
+  // Flag flapping nodes (>3 restarts) and unclean restart reasons in red.
+  const reasonCls = (r) => /unclean|auto-heal|crash|oom/i.test(r || "") ? "high" : "recon";
   const rows = nodes.map((n) => `<tr>
     <td>${n.online ? '<span class="pill recon">online</span>' : '<span class="pill high">offline</span>'}</td>
-    <td>${esc(n.name)}</td><td>${esc(n.region || "—")}</td>
+    <td>${esc(n.name)}<div class="muted" style="font-size:10px">${esc(n.region || "")}</div></td>
+    <td>${df(n.publicIp || "—")}</td>
+    <td>${df(n.privateIp || "—")}</td>
+    <td class="wrap muted">${esc(n.hostname || "—")}</td>
+    <td>${(n.ports ? String(n.ports).split(",") : []).map((p) => pill("recon", p.trim())).join(" ") || "—"}${n.services ? `<div class="muted" style="font-size:10px">${esc(n.services)}</div>` : ""}</td>
     <td>${esc(n.attackers)}</td><td>${esc(n.active15m)}</td><td>${esc(n.highRisk)}</td>
-    <td>${esc(n.transcripts)}</td><td>${esc(n.topCountry)}</td><td>${shortTime(n.lastSeen)}</td>
+    <td>${n.restarts != null ? `<span class="${(n.restarts > 3) ? "hot" : ""}">${esc(n.restarts)}</span>` : "—"}${n.lastStartReason ? `<div class="muted" style="font-size:10px"><span class="pill ${reasonCls(n.lastStartReason)}">${esc(n.lastStartReason)}</span></div>` : ""}</td>
+    <td>${shortTime(n.lastSeen)}</td>
   </tr>`).join("");
   panel.innerHTML = `
     <div class="kpis" style="margin-bottom:14px">
       <div class="kpi"><div class="k-label">Nodes</div><div class="k-value">${nodes.length}</div></div>
       <div class="kpi"><div class="k-label">Online</div><div class="k-value">${nodes.filter((n) => n.online).length}</div></div>
       <div class="kpi"><div class="k-label">Total attackers</div><div class="k-value">${nodes.reduce((s, n) => s + (n.attackers || 0), 0)}</div></div>
+      <div class="kpi ${nodes.some((n) => n.restarts > 3) ? "alert" : ""}"><div class="k-label">Flapping (&gt;3)</div><div class="k-value">${nodes.filter((n) => n.restarts > 3).length}</div></div>
     </div>
-    <table><thead><tr><th>Status</th><th>Node</th><th>Region</th><th>Attackers</th><th>Active 15m</th><th>High</th><th>Transcripts</th><th>Top origin</th><th>Last seen</th></tr></thead>
-      <tbody>${rows || '<tr><td colspan="9" class="empty">no nodes reporting yet</td></tr>'}</tbody></table>
-    <p class="cfg-note" style="margin-top:12px">Point other deployments here with <code>FLEET_MASTER_URL</code> (+ <code>FLEET_TOKEN</code>) and label them via <code>NODE_NAME</code>/<code>NODE_REGION</code>.</p>`;
+    <table><thead><tr>
+      <th>Status</th><th>Node</th><th>Public IP</th><th>Internal IP</th><th>Hostname</th><th>Ports / services</th>
+      <th>Attackers</th><th>Active 15m</th><th>High</th><th>Restarts / why</th><th>Last seen</th>
+    </tr></thead>
+      <tbody>${rows || '<tr><td colspan="11" class="empty">no nodes reporting yet</td></tr>'}</tbody></table>
+    <p class="cfg-note" style="margin-top:12px">Each node reports its own public/internal IP (via instance metadata), exposed ports, hostname, and restart count + reason. Point deployments here with <code>FLEET_MASTER_URL</code> (+ <code>FLEET_TOKEN</code>); label via <code>NODE_NAME</code>/<code>NODE_REGION</code>/<code>NODE_PORTS</code>.</p>`;
 }
 
 const TAB_RENDERERS = {
@@ -809,6 +869,25 @@ document.querySelectorAll(".tab").forEach((btn) => {
     TAB_RENDERERS[activeTab]();
   };
 });
+// Delegated pagination controls (panel is re-rendered, so listen on its parent).
+document.getElementById("panel").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-pager]");
+  if (!b || b.disabled) return;
+  const st = pget(b.getAttribute("data-key"));
+  const act = b.getAttribute("data-pager");
+  if (act === "prev") st.page -= 1;
+  else if (act === "next") st.page += 1;
+  else st.page = parseInt(act, 10);
+  TAB_RENDERERS[activeTab]();
+});
+document.getElementById("panel").addEventListener("change", (e) => {
+  const sel = e.target.closest("select[data-size-key]");
+  if (!sel) return;
+  const st = pget(sel.getAttribute("data-size-key"));
+  st.size = parseInt(sel.value, 10); st.page = 1;
+  TAB_RENDERERS[activeTab]();
+});
+
 document.getElementById("autoRefresh").onchange = (e) => { autoRefresh = e.target.checked; startTimer(); };
 document.getElementById("drawerClose").onclick = () => document.getElementById("drawer").classList.add("hidden");
 

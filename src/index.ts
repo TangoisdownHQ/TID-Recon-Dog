@@ -8,6 +8,7 @@ import { startTelnetService } from "./services/telnetService.js";
 import { startModbusService } from "./services/modbusService.js";
 import { startSnmpService } from "./services/snmpService.js";
 import { startSmtpService } from "./services/smtpService.js";
+import { initNodeStatus } from "./operator/nodeStatus.js";
 import { formatConsole, readSessionSnapshots } from "./utils/logger.js";
 import {
   isValidAction,
@@ -510,6 +511,7 @@ async function main() {
 
   switch (command) {
     case "start":
+      initNodeStatus(); // count this boot + classify why (restart accounting for Fleet tab)
       if (args[0] === "tidrecondog") {
         await launchTidReconDog();
       } else {

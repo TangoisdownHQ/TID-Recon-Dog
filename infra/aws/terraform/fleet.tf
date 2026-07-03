@@ -65,6 +65,7 @@ locals {
   node_personas = { for k, v in local.personas : k => v if k != local.master_key }
 
   operator_token = var.operator_token != "" ? var.operator_token : random_password.operator_token.result
+  backup_bucket  = var.backup_bucket != "" ? var.backup_bucket : "${var.name}-backups-${data.aws_caller_identity.me.account_id}"
 
   # Params common to every node's user_data.
   user_data_common = {
@@ -86,6 +87,21 @@ locals {
 resource "random_password" "operator_token" {
   length  = 32
   special = false
+}
+
+# Let every fleet node read/write the backup bucket (daily S3 log backup + restore).
+resource "aws_iam_role_policy" "backup" {
+  name = "${var.name}-s3-backup"
+  role = aws_iam_role.instance.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "TidBackup"
+      Effect   = "Allow"
+      Action   = ["s3:PutObject", "s3:GetObject", "s3:ListBucket"]
+      Resource = ["arn:aws:s3:::${local.backup_bucket}", "arn:aws:s3:::${local.backup_bucket}/*"]
+    }]
+  })
 }
 
 # Fleet-internal SG: lets nodes reach the master's operator plane (9090). Not
@@ -171,8 +187,10 @@ resource "aws_instance" "master" {
     node_region      = local.personas[local.master_key].region
     ports_tcp        = local.personas[local.master_key].tcp
     udp_snmp         = local.personas[local.master_key].snmp
-    fleet_master_url = ""              # master aggregates locally
-    operator_publish = "9090:9090"     # reachable by fleet (SG-restricted, not public)
+    node_ports       = join(",", concat([for p in local.personas[local.master_key].tcp : tostring(p.host)], local.personas[local.master_key].snmp ? ["161"] : []))
+    backup_bucket    = local.backup_bucket
+    fleet_master_url = ""          # master aggregates locally
+    operator_publish = "9090:9090" # reachable by fleet (SG-restricted, not public)
   }))
 
   root_block_device {
@@ -201,6 +219,8 @@ resource "aws_instance" "node" {
     node_region      = each.value.region
     ports_tcp        = each.value.tcp
     udp_snmp         = each.value.snmp
+    node_ports       = join(",", concat([for p in each.value.tcp : tostring(p.host)], each.value.snmp ? ["161"] : []))
+    backup_bucket    = local.backup_bucket
     fleet_master_url = "http://${aws_instance.master.private_ip}:9090"
     operator_publish = "127.0.0.1:9090:9090" # localhost only on nodes
   }))
