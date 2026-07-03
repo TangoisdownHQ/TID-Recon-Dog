@@ -823,11 +823,62 @@ async function renderFleet() {
     <p class="cfg-note" style="margin-top:12px">Each node reports its own public/internal IP (via instance metadata), exposed ports, hostname, and restart count + reason. Point deployments here with <code>FLEET_MASTER_URL</code> (+ <code>FLEET_TOKEN</code>); label via <code>NODE_NAME</code>/<code>NODE_REGION</code>/<code>NODE_PORTS</code>.</p>`;
 }
 
+async function renderCredentials() {
+  const panel = document.getElementById("panel");
+  let rep = { totalAttempts: 0, uniqueUsernames: 0, topUsernames: [], byService: {} };
+  try { rep = await api("/api/credentials"); } catch (e) {}
+  const svcCards = Object.entries(rep.byService || {}).map(([k, v]) =>
+    `<div class="kpi"><div class="k-label">${esc(k)}</div><div class="k-value" style="font-size:20px">${esc(v)}</div></div>`).join("")
+    || '<div class="muted">no credential attempts yet</div>';
+  const { slice, controls } = paginate(rep.topUsernames || [], "credentials");
+  const body = slice.map((c) => `<tr>
+    <td class="hot">${df(c.username)}</td>
+    <td>${esc(c.sources)}</td>
+    <td>${esc(c.authAttempts)}</td>
+    <td>${(c.services || []).map((s) => pill("recon", s)).join(" ")}</td>
+    <td class="wrap muted">${(c.sampleIps || []).map(df).join(", ")}</td>
+  </tr>`).join("");
+  panel.innerHTML = `
+    <div class="kpis" style="margin-bottom:12px">
+      <div class="kpi"><div class="k-label">Total auth attempts</div><div class="k-value">${esc(rep.totalAttempts)}</div></div>
+      <div class="kpi"><div class="k-label">Unique usernames</div><div class="k-value">${esc(rep.uniqueUsernames)}</div></div>
+    </div>
+    <h4 class="muted" style="margin:6px 0">Distinct usernames per service</h4>
+    <div class="kpis" style="margin-bottom:14px">${svcCards}</div>
+    <table><thead><tr><th>Username</th><th>Source IPs</th><th>Auth attempts</th><th>Services</th><th>Sample sources</th></tr></thead>
+      <tbody>${body || '<tr><td colspan="5" class="empty">no usernames captured yet</td></tr>'}</tbody></table>
+    ${controls}
+    <p class="cfg-note" style="margin-top:8px">Usernames attackers tried across the fleet, ranked by distinct sources. Passwords are stored length-only (never plaintext).</p>`;
+}
+
+async function renderPayloads() {
+  const panel = document.getElementById("panel");
+  let rows = [];
+  try { rows = await api("/api/payloads?limit=500"); } catch (e) {}
+  const { slice, controls } = paginate(rows, "payloads");
+  const body = slice.map((p) => `<tr>
+    <td>${shortTime(p.at)}</td>
+    <td class="wrap">${df(p.originalName)}</td>
+    <td class="mono">${esc((p.sha256 || "").slice(0, 16))}…</td>
+    <td>${esc(p.size)}</td>
+    <td>${esc(p.service)}</td>
+    <td>${df(p.sourceIp)}</td>
+  </tr>`).join("");
+  panel.innerHTML = `
+    <div class="control-row" style="margin-bottom:10px"><span class="muted">${rows.length} captured payload(s) · SHA-256 for sandbox/VT lookup (do not execute)</span></div>
+    <table><thead><tr><th>Time</th><th>Filename</th><th>SHA-256</th><th>Bytes</th><th>Service</th><th>Source IP</th></tr></thead>
+      <tbody>${body || '<tr><td colspan="6" class="empty">no payloads captured yet</td></tr>'}</tbody></table>
+    ${controls}
+    <p class="cfg-note" style="margin-top:8px">Files attackers uploaded, hashed for identification. Bytes are retained in the uploads volume — treat as hostile; never execute outside a sandbox.</p>`;
+}
+
 const TAB_RENDERERS = {
   feed: renderFeed,
   attackers: renderAttackers,
   sessions: renderSessions,
   alerts: renderAlerts,
+  credentials: renderCredentials,
+  payloads: renderPayloads,
   control: renderControl,
   cti: renderCti,
   darkweb: renderDarkweb,

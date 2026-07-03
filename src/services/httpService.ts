@@ -9,6 +9,8 @@ import { config } from "../config/config.js";
 import { resolveAttackerService } from "../deception_engine/state/attacker_memory.js";
 import { getActionForSession } from "../operator/controlPlane.js";
 import { recordInteractionEvent } from "../responders/interactionRecorder.js";
+import { recordPayload } from "../operator/payloadStore.js";
+import { getSelfSignedCert } from "../utils/tls.js";
 import {
   applyHttpAction,
   buildCameraArchive,
@@ -572,6 +574,18 @@ export async function startHttpService() {
     const sessionId = getSessionId(req) || crypto.randomUUID();
     const context = await resolveAttackerService(ip, "http");
     const originalName = req.file?.originalname || "unknown.bin";
+    // Hash + index the captured payload (dedupe by sha256, sandbox/VT out of band).
+    let sha = "";
+    if (req.file?.path) {
+      const rec = await recordPayload({
+        filePath: req.file.path,
+        originalName,
+        service: "http",
+        sourceIp: ip,
+        sessionId,
+      });
+      if (rec) sha = rec.sha256;
+    }
     const uploadedRecord = {
       path: `/${originalName}`,
       contents: `uploaded artifact ${originalName} received by ${context.serviceMemory.host}`,
@@ -582,7 +596,7 @@ export async function startHttpService() {
       sessionId,
       service: "HTTP",
       ip,
-      detail: `uploaded file ${originalName}`,
+      detail: `uploaded file ${originalName}${sha ? ` sha256=${sha.slice(0, 12)}` : ""}`,
       request: `POST /upload ${originalName}`,
       response: `stored ${originalName}`,
       patch: {
@@ -887,6 +901,24 @@ export async function startHttpService() {
     const instance = app.listen(config.services.http.port, config.services.http.host, () => resolve(instance));
     instance.once("error", reject);
   });
+
+  // Also serve the same panels over HTTPS with a stable self-signed cert — real
+  // admin/camera UIs use TLS, and scanners probe 443. Best-effort: if cert
+  // generation fails, HTTP still serves normally.
+  try {
+    const tls = await getSelfSignedCert(process.env.TLS_CN || "localhost");
+    if (tls) {
+      const https = await import("https");
+      const httpsPort = Number(process.env.HTTPS_PORT || 3443);
+      const httpsServer = https.createServer({ key: tls.key, cert: tls.cert }, app);
+      httpsServer.listen(httpsPort, config.services.http.host, () => {
+        console.log(`[${new Date().toISOString()}] HTTPS listening on ${config.services.http.host}:${httpsPort}`);
+      });
+      httpsServer.on("error", (e) => void logError("HTTPS", "-", "HTTPS listener error", { error: String(e) }));
+    }
+  } catch (e) {
+    void logError("HTTPS", "-", "HTTPS init failed", { error: String(e) });
+  }
 
   return {
     name: "http",

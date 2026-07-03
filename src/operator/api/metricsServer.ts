@@ -22,6 +22,8 @@ import { buildStixBundle, buildMispEvent, buildBlocklist } from "../../cti/expor
 import { enrichmentProviders } from "../../cti/enrich.js";
 import { forwardingTargets } from "../../cti/forward.js";
 import { feedUrls, ingestFeeds, autoBlockEnabled } from "../../cti/feeds.js";
+import { buildCredentials } from "../credentials.js";
+import { readPayloads } from "../payloadStore.js";
 import { refreshDarkweb, readDarkwebHits, darkwebConfigured, buildDarkwebFeed } from "../../cti/darkweb.js";
 import {
   isValidAction,
@@ -178,6 +180,15 @@ export async function startOperatorServer(): Promise<OperatorServerHandle> {
     const limit = Math.min(1000, Math.max(1, Number(req.query.limit) || 200));
     const all = await readTranscripts();
     res.json(all.slice(-limit).reverse());
+  });
+
+  app.get("/api/credentials", async (_req, res) => {
+    res.json(await buildCredentials(150));
+  });
+
+  app.get("/api/payloads", async (req, res) => {
+    const limit = Math.min(1000, Math.max(1, Number(req.query.limit) || 300));
+    res.json(await readPayloads(limit));
   });
 
   app.get("/api/alerts", async (_req, res) => {

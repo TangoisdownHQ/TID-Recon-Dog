@@ -18,7 +18,7 @@ locals {
     camera-nvr = {
       services = "http rtsp"
       region   = "camera / NVR edge"
-      tcp      = [{ host = 80, container = 3000 }, { host = 554, container = 8554 }]
+      tcp      = [{ host = 80, container = 3000 }, { host = 443, container = 3443 }, { host = 554, container = 8554 }]
       snmp     = false
     }
     ops-db = {

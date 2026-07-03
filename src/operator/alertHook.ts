@@ -46,6 +46,39 @@ async function fireWebhook(url: string, payload: AlertPayload) {
   }
 }
 
+/**
+ * Push a high-risk alert to Telegram via the Bot API. Requires TELEGRAM_BOT_TOKEN
+ * and TELEGRAM_CHAT_ID. Best-effort — never throws into the live path.
+ */
+async function fireTelegram(payload: AlertPayload) {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_CHAT_ID;
+  if (!token || !chatId) return;
+  const node = process.env.NODE_NAME ? ` [${process.env.NODE_NAME}]` : "";
+  const lines = [
+    `🚨 *${payload.risk.toUpperCase()} escalation*${node}`,
+    `\`${payload.source_ip}\` · ${payload.intent} · score ${payload.score}`,
+    `services: ${payload.services.join(", ") || "—"}`,
+  ];
+  if (payload.summary) lines.push(`\n${payload.summary}`);
+  if (payload.highlights?.exploits?.length) {
+    lines.push(`\n⚠ exploits: ${payload.highlights.exploits.map((e) => e.name).join(", ")}`);
+  }
+  try {
+    const controller = new AbortController();
+    const tid = setTimeout(() => controller.abort(), 5000);
+    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, text: lines.join("\n"), parse_mode: "Markdown", disable_web_page_preview: true }),
+      signal: controller.signal,
+    });
+    clearTimeout(tid);
+  } catch {
+    // never crash on notify failure
+  }
+}
+
 export async function readAlerts(): Promise<AlertPayload[]> {
   try {
     const raw = await fs.readFile(alertLogPath, "utf8");
@@ -101,4 +134,5 @@ export async function maybeFireAlert(params: {
   if (webhookUrl) {
     void fireWebhook(webhookUrl, payload);
   }
+  void fireTelegram(payload);
 }
