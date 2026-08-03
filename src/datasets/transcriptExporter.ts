@@ -46,8 +46,23 @@ export function transcriptToRecord(transcript: TranscriptRecord): TranscriptExpo
   };
 }
 
-export async function exportProtocolTranscripts(outputPath?: string, serviceFilter?: string) {
-  const transcripts = await readTranscripts();
+/** Read TranscriptRecords from a jsonl file (e.g. a salvaged runtime backup). */
+async function readTranscriptFile(sourceFile: string): Promise<TranscriptRecord[]> {
+  const raw = await fs.readFile(path.resolve(sourceFile), "utf8");
+  const records: TranscriptRecord[] = [];
+  for (const line of raw.split(/\r?\n/)) {
+    if (!line.trim()) continue;
+    try {
+      records.push(JSON.parse(line) as TranscriptRecord);
+    } catch {
+      // skip malformed lines rather than abort the whole import
+    }
+  }
+  return records;
+}
+
+export async function exportProtocolTranscripts(outputPath?: string, serviceFilter?: string, sourceFile?: string) {
+  const transcripts = sourceFile ? await readTranscriptFile(sourceFile) : await readTranscripts();
   const filtered = serviceFilter
     ? transcripts.filter((transcript) => transcript.service.toLowerCase() === serviceFilter.toLowerCase())
     : transcripts;
@@ -69,5 +84,6 @@ export async function exportProtocolTranscripts(outputPath?: string, serviceFilt
   return {
     targetPath,
     transcripts: filtered.length,
+    source: sourceFile || "runtime",
   };
 }

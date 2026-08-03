@@ -83,7 +83,7 @@ Usage:
   node dist/index.js profiles
   node dist/index.js personas
   node dist/index.js export-dataset [output.jsonl] [source1.csv source2.jsonl ...]
-  node dist/index.js export-transcripts [output.jsonl] [service]
+  node dist/index.js export-transcripts [output.jsonl] [service] [--from backup.jsonl]
   node dist/index.js ct-manifest [output.json] [corpus.jsonl]
   node dist/index.js export-eval-suite [output.jsonl]
   node dist/index.js run-eval [suite.jsonl] [responses.jsonl]
@@ -337,8 +337,16 @@ async function runExportDataset(args: string[]) {
 }
 
 async function runExportTranscripts(args: string[]) {
-  const result = await exportProtocolTranscripts(args[0], args[1]);
-  console.log(`Wrote ${result.transcripts} protocol transcripts to ${result.targetPath}`);
+  // Optional `--from <file>` imports transcripts from a jsonl file (e.g. a
+  // salvaged runtime backup) instead of the live store.
+  const fromIdx = args.indexOf("--from");
+  let sourceFile: string | undefined;
+  if (fromIdx !== -1) {
+    sourceFile = args[fromIdx + 1];
+    args = args.filter((_, i) => i !== fromIdx && i !== fromIdx + 1);
+  }
+  const result = await exportProtocolTranscripts(args[0], args[1], sourceFile);
+  console.log(`Wrote ${result.transcripts} protocol transcripts to ${result.targetPath} (source: ${result.source})`);
 }
 
 async function runCtManifest(args: string[]) {
