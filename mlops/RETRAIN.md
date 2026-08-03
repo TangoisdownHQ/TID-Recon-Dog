@@ -35,6 +35,44 @@ On Kubernetes, on-demand = spawn the CronJob immediately:
 kubectl -n tid-recon-dog create job --from=cronjob/tidrc-retrain retrain-now-$(date +%s)
 ```
 
+## Retraining from the AWS fleet (capture ≠ train)
+
+The honeypot fleet runs on small AWS nodes with **no GPU** — they only capture
+and back up transcripts to S3 (daily, per node, under
+`s3://<backup-bucket>/nodes/<node>/<ts>/opt_tid-runtime.tgz`). Training lives on
+**this machine** (GPU, `.venv-train`, base model). `sync_retrain.sh` bridges the
+two: it pulls each node's latest capture from S3, merges the transcripts into a
+dedicated `runtime-fleet/` dir, then hands off to `auto_retrain.sh` (the
+salvaged/archived batches in `archive_logs/` are still folded in and deduped).
+
+```sh
+# from the repo root, on the GPU host — fresh fleet data + QLoRA retrain:
+bash mlops/tidrc-ml-pipeline/scripts/sync_retrain.sh
+```
+
+Because nodes only back up to S3 daily, `sync_retrain.sh` defaults to `FRESH=1`:
+it first triggers `tid-backup.sh` on every running node via SSM and waits, so S3
+holds current capture before the pull. Requires AWS creds (`aws sts
+get-caller-identity` must succeed) with SSM + S3 read.
+
+| Env | Default | Purpose |
+|-----|---------|---------|
+| `FRESH` | `1` | force an on-demand backup on all nodes before pulling (`0` = use existing S3 snapshots) |
+| `SYNC_ONLY` | `0` | `1` = download + merge only, skip the retrain (inspect the data) |
+| `TID_BACKUP_BUCKET` | `tid-recon-dog-backups-<acct>` | S3 backup bucket |
+| `TID_NODES` | the 7 fleet nodes | which nodes to pull |
+| `FLEET_RUNTIME_DIR` | `<repo>/runtime-fleet` | where merged transcripts land |
+
+All `auto_retrain.sh` knobs (`RETRAIN_FORCE`, `RETRAIN_BACKEND`, …) pass through:
+
+```sh
+SYNC_ONLY=1 bash …/sync_retrain.sh                       # just pull + inspect
+FRESH=0 RETRAIN_BACKEND=none RETRAIN_FORCE=1 bash …/sync_retrain.sh   # export-only dry run
+```
+
+> `sync_retrain.sh` lives in the (gitignored) pipeline dir alongside
+> `auto_retrain.sh`; it isn't pushed, but this doc is the reference to recreate it.
+
 ## Retrain every 8 hours
 
 **Local host** (training runs where the GPU/model live) — systemd timer:
@@ -48,6 +86,10 @@ systemctl list-timers tidrc-retrain.timer      # confirm next run
 ```
 
 (cron alternative: `0 */8 * * * cd /…/mlops/tidrc-ml-pipeline && bash scripts/auto_retrain.sh >> retrain.log 2>&1`)
+
+To train on **live AWS fleet** data on that schedule, point the timer/cron at
+`scripts/sync_retrain.sh` instead of `auto_retrain.sh` — it pulls fresh capture
+from S3 first (see the fleet section above), then retrains.
 
 **EKS** — `kubectl apply -f k8s/mlops/cronjob.yaml` (GPU node pool + shared
 transcript storage required; see comments in that file and `infra/aws/README.md`).

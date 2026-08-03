@@ -4,6 +4,7 @@ dist/
 
 # runtime data / secrets / artifacts
 runtime/
+runtime-fleet/
 logs/
 uploads/
 exports/
