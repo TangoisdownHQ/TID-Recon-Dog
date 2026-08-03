@@ -15,6 +15,10 @@
       <span class="subtitle">// OPERATOR CONSOLE</span>
     </div>
     <div class="status">
+      <div class="scope-toggle" id="scopeToggle">
+        <button class="scope on" data-scope="fleet">Fleet</button>
+        <button class="scope" data-scope="node">This node</button>
+      </div>
       <span id="liveDot" class="dot"></span>
       <span id="liveText">connecting…</span>
       <label class="toggle">
@@ -61,6 +65,7 @@
       <button class="tab" data-tab="control">Control</button>
       <button class="tab" data-tab="cti">CTI</button>
       <button class="tab" data-tab="darkweb">Dark-web</button>
+      <button class="tab" data-tab="hosts">Hosts</button>
       <button class="tab" data-tab="fleet">Fleet</button>
       <button class="tab" data-tab="mlops">MLOps</button>
     </nav>

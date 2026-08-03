@@ -73,7 +73,15 @@ export function getNodeStatus(): NodeStatus {
 }
 
 // --- Network identity (EC2 IMDSv2, cached; env overrides win) ----------------
-let netCache: { publicIp: string; privateIp: string; hostname: string } | null = null;
+export type NodeNetwork = {
+  publicIp: string;
+  privateIp: string;
+  hostname: string;
+  instanceId: string;
+  instanceType: string;
+  az: string;
+};
+let netCache: NodeNetwork | null = null;
 
 async function imds(pathname: string, token: string): Promise<string> {
   try {
@@ -90,36 +98,77 @@ async function imds(pathname: string, token: string): Promise<string> {
   }
 }
 
-export async function getNodeNetwork(): Promise<{ publicIp: string; privateIp: string; hostname: string }> {
+export async function getNodeNetwork(): Promise<NodeNetwork> {
   if (netCache) return netCache;
   let publicIp = process.env.NODE_PUBLIC_IP || "";
   let privateIp = process.env.NODE_PRIVATE_IP || "";
   const hostname = process.env.NODE_HOSTNAME || os.hostname();
+  let instanceId = "";
+  let instanceType = "";
+  let az = "";
 
-  if (!publicIp || !privateIp) {
-    try {
-      const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), 500);
-      const tr = await fetch("http://169.254.169.254/latest/api/token", {
-        method: "PUT",
-        headers: { "X-aws-ec2-metadata-token-ttl-seconds": "21600" },
-        signal: ctrl.signal,
-      });
-      clearTimeout(t);
-      if (tr.ok) {
-        const token = (await tr.text()).trim();
-        publicIp = publicIp || (await imds("public-ipv4", token));
-        privateIp = privateIp || (await imds("local-ipv4", token));
-      }
-    } catch {
-      /* not on EC2 / IMDS unavailable */
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 500);
+    const tr = await fetch("http://169.254.169.254/latest/api/token", {
+      method: "PUT",
+      headers: { "X-aws-ec2-metadata-token-ttl-seconds": "21600" },
+      signal: ctrl.signal,
+    });
+    clearTimeout(t);
+    if (tr.ok) {
+      const token = (await tr.text()).trim();
+      publicIp = publicIp || (await imds("public-ipv4", token));
+      privateIp = privateIp || (await imds("local-ipv4", token));
+      instanceId = await imds("instance-id", token);
+      instanceType = await imds("instance-type", token);
+      az = await imds("placement/availability-zone", token);
     }
+  } catch {
+    /* not on EC2 / IMDS unavailable */
   }
-  netCache = { publicIp, privateIp, hostname };
+  netCache = { publicIp, privateIp, hostname, instanceId, instanceType, az };
   return netCache;
 }
 
 /** Ports this node exposes to the world (from NODE_PORTS env, e.g. "80,554"). */
 export function getNodePorts(): string {
   return process.env.NODE_PORTS || "";
+}
+
+// --- Misc host info (OS, runtime, resource pressure) --------------------------
+export type NodeMisc = {
+  os: string; // e.g. "linux 6.1.134-150.224.amzn2023.x86_64"
+  arch: string;
+  appVersion: string; // package.json version (+ IMAGE_TAG env when set)
+  nodeVersion: string; // Node.js runtime
+  uptimeSec: number; // this process
+  load1: number; // 1-minute load average
+  memPct: number; // host memory in use, 0-100
+};
+
+let appVersionCache = "";
+function appVersion(): string {
+  if (!appVersionCache) {
+    try {
+      const pkg = JSON.parse(fs.readFileSync(path.resolve("package.json"), "utf8")) as { version?: string };
+      appVersionCache = pkg.version || "?";
+    } catch {
+      appVersionCache = "?";
+    }
+    if (process.env.IMAGE_TAG) appVersionCache += ` (${process.env.IMAGE_TAG})`;
+  }
+  return appVersionCache;
+}
+
+export function getNodeMisc(): NodeMisc {
+  return {
+    os: `${os.platform()} ${os.release()}`,
+    arch: os.arch(),
+    appVersion: appVersion(),
+    nodeVersion: process.version,
+    uptimeSec: Math.round(process.uptime()),
+    load1: Math.round(os.loadavg()[0] * 100) / 100,
+    memPct: Math.round((1 - os.freemem() / os.totalmem()) * 100),
+  };
 }

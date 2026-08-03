@@ -17,7 +17,7 @@ import { readShadow } from "../../deception_engine/logging/shadow_store.js";
 import { isAiConfigured } from "../../responders/aiEngine.js";
 import { buildIocs, buildAttackMatrix, buildActors, buildCampaigns, buildNovelty } from "../../cti/iocEngine.js";
 import { readPlaybooks, writePlaybooks, Playbook } from "../playbooks.js";
-import { listNodes, reportNode, selfReport, FleetNode } from "../fleet.js";
+import { listNodes, reportNode, selfReport, listFleetFeed, reportFeed, reportDetail, fleetOverview, fleetTimeline, fleetAttackers, fleetSessions, FleetNode, FleetDetail } from "../fleet.js";
 import { buildStixBundle, buildMispEvent, buildBlocklist } from "../../cti/export.js";
 import { enrichmentProviders } from "../../cti/enrich.js";
 import { forwardingTargets } from "../../cti/forward.js";
@@ -81,7 +81,10 @@ export async function startOperatorServer(): Promise<OperatorServerHandle> {
 
   const app = express();
   app.disable("x-powered-by");
-  app.use(express.json());
+  // 8mb, not the 100kb default: a busy node's fleet-detail snapshot (up to 200
+  // attackers + 200 sessions + overview/timeline/feed) can exceed 100kb, and a
+  // 413 there silently drops that node from the fleet-wide view.
+  app.use(express.json({ limit: "8mb" }));
 
   const webDir = resolveWebDir();
 
@@ -375,6 +378,41 @@ export async function startOperatorServer(): Promise<OperatorServerHandle> {
     await reportNode(n);
     res.json({ status: "ok" });
   });
+
+  // Fleet-wide live feed: nodes push recent activity; the GUI merges all nodes.
+  app.get("/api/fleet/feed", async (req, res) => {
+    const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 120));
+    res.json(await listFleetFeed(limit));
+  });
+  app.post("/api/fleet/feed", async (req, res) => {
+    const node = String(req.body?.node || "").trim();
+    const items = Array.isArray(req.body?.items) ? req.body.items : null;
+    if (!node || !items) {
+      res.status(400).json({ error: "node and items required" });
+      return;
+    }
+    await reportFeed(node, items);
+    res.json({ status: "ok" });
+  });
+
+  // Fleet-wide detail: nodes push overview/timeline/attackers/sessions; the
+  // master merges so the dashboard + Attackers/Sessions tabs can show all nodes.
+  app.post("/api/fleet/detail", async (req, res) => {
+    const d = req.body as FleetDetail;
+    if (!d || !d.node || !d.overview) {
+      res.status(400).json({ error: "invalid detail report" });
+      return;
+    }
+    await reportDetail(d);
+    res.json({ status: "ok" });
+  });
+  app.get("/api/fleet/overview", async (_req, res) => res.json(await fleetOverview()));
+  app.get("/api/fleet/timeline", async (req, res) => {
+    const hours = Math.min(168, Math.max(1, Number(req.query.hours) || 24));
+    res.json(await fleetTimeline(hours));
+  });
+  app.get("/api/fleet/attackers", async (_req, res) => res.json(await fleetAttackers()));
+  app.get("/api/fleet/sessions", async (_req, res) => res.json(await fleetSessions()));
 
   app.get("/metrics", async (_req, res) => {
     res.type("text/plain").send(await buildPrometheus());

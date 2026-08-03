@@ -119,6 +119,31 @@ main { padding: 18px 20px 60px; max-width: 1400px; margin: 0 auto; }
 .card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
 .card-head h3 { margin: 0; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text); }
 
+.scope-toggle { display: inline-flex; border: 1px solid var(--line); }
+.scope {
+  background: transparent; color: var(--muted); border: none; cursor: pointer;
+  font-family: var(--mono); font-size: 11px; padding: 6px 12px; letter-spacing: 0.06em;
+}
+.scope + .scope { border-left: 1px solid var(--line); }
+.scope.on { background: var(--burgundy-dim); color: var(--text); }
+
+.host-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 12px;
+}
+.host-row {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+}
+.host-row:last-child { border-bottom: none; }
+.host-k { color: var(--muted); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; align-self: center; }
+.host-v { overflow-wrap: anywhere; }
+
 .bars { display: flex; flex-direction: column; gap: 8px; }
 .bar-row { display: grid; grid-template-columns: 90px 1fr 36px; align-items: center; gap: 8px; }
 .bar-row .bl { color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

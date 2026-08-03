@@ -7,6 +7,8 @@ const REFRESH_MS = 4000;
 
 let activeTab = "feed";
 let autoRefresh = true;
+let scope = "fleet"; // "fleet" = all nodes (merged via master), "node" = this box only
+const isFleet = () => scope === "fleet";
 let refreshTimer = null;
 
 async function api(path) {
@@ -170,30 +172,33 @@ function renderTimeline(points) {
 let feedFilter = "";
 
 async function renderFeed() {
-  const rows = await api("/api/feed?limit=120");
+  const fleet = isFleet();
+  const rows = await api(fleet ? "/api/fleet/feed?limit=200" : "/api/feed?limit=120");
   const panel = document.getElementById("panel");
   const f = feedFilter.toLowerCase();
   const shown = f
-    ? rows.filter((r) => [r.service, r.sourceIp, r.intent, r.action, r.request].join(" ").toLowerCase().includes(f))
+    ? rows.filter((r) => [r.node, r.service, r.sourceIp, r.intent, r.action, r.request].join(" ").toLowerCase().includes(f))
     : rows;
   const hadFocus = document.activeElement && document.activeElement.id === "feedFilter";
   const { slice, controls } = paginate(shown, "feed");
   const body = slice.map((r) => `<tr data-attacker="${esc(r.attackerId)}">
     <td>${shortTime(r.at)}</td>
+    ${fleet ? `<td>${pill("recon", r.node || "—")}</td>` : ""}
     <td>${esc(r.service)}</td>
     <td>${df(r.sourceIp)}</td>
     <td>${pill(r.intent, r.intent)}</td>
     <td>${esc(r.score)}</td>
     <td class="wrap">${r.label ? `<span class="pill ${r.intent === "exploitation" ? "high" : "recon"}">${esc(r.label)}</span> ` : ""}<span class="muted">${df((r.request || "").slice(0, 90))}</span></td>
   </tr>`).join("");
+  const cols = fleet ? 7 : 6;
   panel.innerHTML = `
     <div class="control-row" style="margin-bottom:10px">
-      <input id="feedFilter" class="txt" placeholder="filter by service / ip / intent / request…" value="${esc(feedFilter)}" style="flex:1" />
+      <input id="feedFilter" class="txt" placeholder="filter by node / service / ip / intent / request…" value="${esc(feedFilter)}" style="flex:1" />
       <span class="muted">${shown.length}/${rows.length} match · click a row for detail</span>
     </div>
     <table><thead><tr>
-      <th>Time</th><th>Service</th><th>Source IP</th><th>Intent</th><th>Score</th><th>Activity</th>
-    </tr></thead><tbody>${body || '<tr><td colspan="6" class="empty">no matches</td></tr>'}</tbody></table>
+      <th>Time</th>${fleet ? "<th>Node</th>" : ""}<th>Service</th><th>Source IP</th><th>Intent</th><th>Score</th><th>Activity</th>
+    </tr></thead><tbody>${body || `<tr><td colspan="${cols}" class="empty">${fleet ? "no fleet activity yet — nodes report every 60s" : "no matches"}</td></tr>`}</tbody></table>
     ${controls}`;
   const input = document.getElementById("feedFilter");
   input.oninput = (e) => { feedFilter = e.target.value; };
@@ -202,11 +207,17 @@ async function renderFeed() {
 }
 
 async function renderAttackers() {
-  const rows = await api("/api/attackers");
+  const fleet = isFleet();
+  const rows = await api(fleet ? "/api/fleet/attackers" : "/api/attackers");
   const panel = document.getElementById("panel");
   if (!rows.length) { panel.innerHTML = '<div class="empty">No attackers profiled yet.</div>'; return; }
   const { slice, controls } = paginate(rows, "attackers");
-  const body = slice.map((r) => `<tr data-attacker="${esc(r.id)}">
+  const rowsById = {};
+  const body = slice.map((r) => {
+    const key = fleet ? `${r.id}|${r.node}` : r.id;
+    if (fleet) rowsById[key] = r;
+    return `<tr data-attacker="${esc(key)}">
+    ${fleet ? `<td>${pill("recon", r.node || "—")}</td>` : ""}
     <td>${df(r.sourceIp)}</td>
     <td>${esc(r.country)}</td>
     <td>${pill(r.risk, r.risk)}</td>
@@ -214,22 +225,27 @@ async function renderAttackers() {
     <td>${esc(r.totalScore)}</td>
     <td>${shortTime(r.lastSeenAt)}</td>
     <td class="wrap muted">${esc(r.summary || "")}</td>
-  </tr>`).join("");
+  </tr>`;
+  }).join("");
   panel.innerHTML = `<table><thead><tr>
-    <th>Source IP</th><th>Geo</th><th>Risk</th><th>Intent</th><th>Score</th><th>Last Seen</th><th>What happened</th>
+    ${fleet ? "<th>Node</th>" : ""}<th>Source IP</th><th>Geo</th><th>Risk</th><th>Intent</th><th>Score</th><th>Last Seen</th><th>What happened</th>
   </tr></thead><tbody>${body}</tbody></table>
   ${controls}
-  <p class="cfg-note" style="margin-top:8px">Click a row for full profile, captured creds, commands & actions.</p>`;
-  wireRowDrawer(panel, "attacker");
+  <p class="cfg-note" style="margin-top:8px">${fleet ? "Fleet-wide — same IP hitting different nodes appears once per node. " : ""}Click a row for full profile, captured creds, commands & actions.</p>`;
+  if (fleet) wireFleetAttackerDrawer(panel, rowsById); else wireRowDrawer(panel, "attacker");
 }
 
 async function renderSessions() {
-  const rows = await api("/api/sessions");
+  const fleet = isFleet();
+  const rows = await api(fleet ? "/api/fleet/sessions" : "/api/sessions");
   const panel = document.getElementById("panel");
   if (!rows.length) { panel.innerHTML = '<div class="empty">No sessions recorded yet.</div>'; return; }
-  const { slice, controls } = paginate(rows.slice().reverse(), "sessions");
-  const body = slice.map((r) => `<tr data-session="${esc(r.id)}">
-    <td>${esc(r.id.slice(0, 8))}</td>
+  // Fleet feed already arrives newest-first; node feed is oldest-first.
+  const ordered = fleet ? rows : rows.slice().reverse();
+  const { slice, controls } = paginate(ordered, "sessions");
+  const body = slice.map((r) => `<tr${fleet ? "" : ` data-session="${esc(r.id)}"`}>
+    <td>${esc((r.id || "").slice(0, 8))}</td>
+    ${fleet ? `<td>${pill("recon", r.node || "—")}</td>` : ""}
     <td>${esc(r.service)}</td>
     <td>${df(r.ip)}</td>
     <td>${esc(r.status)}</td>
@@ -238,10 +254,11 @@ async function renderSessions() {
     <td>${shortTime(r.lastSeenAt)}</td>
   </tr>`).join("");
   panel.innerHTML = `<table><thead><tr>
-    <th>Session</th><th>Service</th><th>IP</th><th>Status</th><th>Action</th><th>Intent</th><th>Last Seen</th>
+    <th>Session</th>${fleet ? "<th>Node</th>" : ""}<th>Service</th><th>IP</th><th>Status</th><th>Action</th><th>Intent</th><th>Last Seen</th>
   </tr></thead><tbody>${body}</tbody></table>
-  ${controls}`;
-  panel.querySelectorAll("tr[data-session]").forEach((tr) => {
+  ${controls}
+  ${fleet ? '<p class="cfg-note" style="margin-top:8px">Fleet-wide sessions. Open the origin node\'s console for step-by-step replay.</p>' : ""}`;
+  if (!fleet) panel.querySelectorAll("tr[data-session]").forEach((tr) => {
     tr.onclick = () => openReplay(tr.getAttribute("data-session"));
   });
 }
@@ -542,6 +559,22 @@ function wireRowDrawer(panel, key) {
   });
 }
 
+// Fleet attacker rows carry another node's data — the master has no per-attacker
+// detail endpoint for it, so render from the row we already have and mark
+// controls read-only (inject/block must be run from the origin node's console).
+function wireFleetAttackerDrawer(panel, rowsById) {
+  panel.querySelectorAll("tr[data-attacker]").forEach((tr) => {
+    tr.onclick = () => {
+      const row = rowsById[tr.getAttribute("data-attacker")];
+      if (!row) return;
+      openDrawer(`Attacker ${row.sourceIp} · ${row.node}`, row, {
+        readOnly: true,
+        note: `On node "${row.node}". Open that node's console to inject or block.`,
+      });
+    };
+  });
+}
+
 function highlightJson(obj) {
   let json = typeof obj === "string" ? obj : JSON.stringify(obj, null, 2);
   json = json.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -564,23 +597,24 @@ function highlightJson(obj) {
   return json;
 }
 
-function openDrawer(title, detail) {
+function openDrawer(title, detail, opts) {
+  const readOnly = opts && opts.readOnly;
   document.getElementById("drawerTitle").textContent = title;
   const body = document.getElementById("drawerBody");
   const sourceIp = detail && typeof detail === "object" ? detail.sourceIp : null;
-  const actions = sourceIp
+  const actions = sourceIp && !readOnly
     ? `<div class="drawer-actions">
          <input id="injMsg" class="txt" placeholder="message to inject into ${esc(sourceIp)} session…" style="flex:1" />
          <button class="act sm" id="injBtn">Inject</button>
          <button class="act sm danger" id="blkBtn">Block IP</button>
        </div>`
-    : "";
+    : (sourceIp && readOnly && opts.note ? `<div class="cfg-note" style="margin-bottom:8px">${esc(opts.note)}</div>` : "");
   const activity = detail && typeof detail === "object" ? detail.activity : null;
   const activityBlock = activity
     ? `<div class="alert-what"><div class="aw-h">What happened</div><div class="aw-b">${esc(activity.headline)}</div></div>${highlightsHtml(activity)}`
     : "";
   body.innerHTML = actions + activityBlock + `<pre class="jsonview">${highlightJson(detail)}</pre>`;
-  if (sourceIp) {
+  if (sourceIp && !readOnly) {
     document.getElementById("injBtn").onclick = async () => {
       const m = document.getElementById("injMsg").value;
       if (!m) return;
@@ -823,6 +857,42 @@ async function renderFleet() {
     <p class="cfg-note" style="margin-top:12px">Each node reports its own public/internal IP (via instance metadata), exposed ports, hostname, and restart count + reason. Point deployments here with <code>FLEET_MASTER_URL</code> (+ <code>FLEET_TOKEN</code>); label via <code>NODE_NAME</code>/<code>NODE_REGION</code>/<code>NODE_PORTS</code>.</p>`;
 }
 
+function fmtUptime(sec) {
+  if (sec == null) return "—";
+  const d = Math.floor(sec / 86400), h = Math.floor((sec % 86400) / 3600), m = Math.floor((sec % 3600) / 60);
+  return d ? `${d}d ${h}h` : h ? `${h}h ${m}m` : `${m}m`;
+}
+
+async function renderHosts() {
+  const panel = document.getElementById("panel");
+  let nodes = [];
+  try { nodes = await api("/api/fleet"); } catch (e) {}
+  nodes = [...nodes].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+  const row = (k, v) => `<div class="host-row"><span class="host-k">${esc(k)}</span><span class="host-v">${v}</span></div>`;
+  const cards = nodes.map((n) => `
+    <div class="card host-card">
+      <div class="card-head">
+        <h3>${esc(n.name)}</h3>
+        ${n.online ? '<span class="pill recon">online</span>' : '<span class="pill high">offline</span>'}
+      </div>
+      ${n.region ? `<div class="muted" style="margin:-6px 0 8px;font-size:11px">${esc(n.region)}</div>` : ""}
+      ${row("External IP", `<span class="hot">${df(n.publicIp || "—")}</span>`)}
+      ${row("Internal IP", df(n.privateIp || "—"))}
+      ${row("Hostname", esc(n.hostname || "—"))}
+      ${row("EC2", n.instanceId ? `${esc(n.instanceId)} · ${esc(n.instanceType || "?")}${n.az ? " · " + esc(n.az) : ""}` : "—")}
+      ${row("Services", (n.services || "—") + (n.ports ? ` <span class="muted">(ports ${esc(n.ports)})</span>` : ""))}
+      ${row("OS / arch", n.os ? `${esc(n.os)} · ${esc(n.arch || "?")}` : "—")}
+      ${row("Version", n.appVersion ? `app ${esc(n.appVersion)} · node ${esc(n.nodeVersion || "?")}` : "—")}
+      ${row("Uptime", fmtUptime(n.uptimeSec))}
+      ${row("Load / mem", n.load1 != null ? `${esc(n.load1)} · ${esc(n.memPct)}% mem` : "—")}
+      ${row("Restarts", `${esc(n.restarts ?? "—")}${n.lastStartReason ? ` <span class="muted">(${esc(n.lastStartReason)})</span>` : ""}`)}
+      ${row("Last seen", shortTime(n.lastSeen))}
+    </div>`).join("");
+  panel.innerHTML = `
+    <div class="host-grid">${cards || '<div class="empty">no nodes reporting yet</div>'}</div>
+    <p class="cfg-note" style="margin-top:12px">One card per honeypot host: network identity (external/internal IP), EC2 placement, exposed surface, and runtime health. Nodes self-report every 60s via the fleet plane.</p>`;
+}
+
 async function renderCredentials() {
   const panel = document.getElementById("panel");
   let rep = { totalAttempts: 0, uniqueUsernames: 0, topUsernames: [], byService: {} };
@@ -882,6 +952,7 @@ const TAB_RENDERERS = {
   control: renderControl,
   cti: renderCti,
   darkweb: renderDarkweb,
+  hosts: renderHosts,
   fleet: renderFleet,
   mlops: renderMlops,
 };
@@ -891,7 +962,11 @@ const STATIC_TABS = new Set(["control", "mlops", "cti"]);
 
 async function refresh() {
   try {
-    const [overview, timeline] = await Promise.all([api("/api/overview"), api("/api/timeline?hours=24")]);
+    const fleet = isFleet();
+    const [overview, timeline] = await Promise.all([
+      api(fleet ? "/api/fleet/overview" : "/api/overview"),
+      api(fleet ? "/api/fleet/timeline?hours=24" : "/api/timeline?hours=24"),
+    ]);
     renderKpis(overview);
     renderBars("riskBars", mapToEntries(overview.attackers.byRisk), { riskColors: true });
     renderBars("intentBars", mapToEntries(overview.attackers.byIntent));
@@ -941,6 +1016,18 @@ document.getElementById("panel").addEventListener("change", (e) => {
 
 document.getElementById("autoRefresh").onchange = (e) => { autoRefresh = e.target.checked; startTimer(); };
 document.getElementById("drawerClose").onclick = () => document.getElementById("drawer").classList.add("hidden");
+
+// Global Fleet | This-node scope toggle: switches KPIs, bars, timeline, feed,
+// attackers, and sessions between the whole fleet and the master's own box.
+document.querySelectorAll("#scopeToggle .scope").forEach((b) => {
+  b.onclick = () => {
+    if (scope === b.dataset.scope) return;
+    scope = b.dataset.scope;
+    document.querySelectorAll("#scopeToggle .scope").forEach((x) => x.classList.toggle("on", x.dataset.scope === scope));
+    ["feed", "attackers", "sessions"].forEach((k) => { if (pageState[k]) pageState[k].page = 1; });
+    refresh();
+  };
+});
 
 // Boot splash: glow the ASCII logo briefly, then reveal the metrics.
 (async () => {
