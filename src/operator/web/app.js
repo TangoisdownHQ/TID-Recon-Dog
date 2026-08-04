@@ -1,8 +1,17 @@
 "use strict";
 
-// Token from ?token=... is stored by the server as an httpOnly cookie, but we
-// also keep it in-memory so the first XHRs after redirect carry it explicitly.
+// Preferred auth is the httpOnly tid_op cookie (set via the login form's POST
+// /api/login, or by the server on a ?token= visit) — every fetch below sends it
+// with credentials:"same-origin". ?token= still works for back-compat, but we
+// scrub it from the address bar immediately so the token doesn't linger in
+// browser history. URL_TOKEN is only a fallback for the very first XHRs before
+// the cookie round-trips.
 const URL_TOKEN = new URLSearchParams(location.search).get("token") || "";
+if (URL_TOKEN && window.history.replaceState) {
+  const u = new URL(location.href);
+  u.searchParams.delete("token");
+  window.history.replaceState({}, document.title, u.pathname + u.search + u.hash);
+}
 const REFRESH_MS = 4000;
 
 let activeTab = "feed";

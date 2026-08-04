@@ -88,20 +88,35 @@ export async function startOperatorServer(): Promise<OperatorServerHandle> {
 
   const webDir = resolveWebDir();
 
+  const cookieAttrs = "HttpOnly; Path=/; SameSite=Strict";
+
+  // Exchange a token for the auth cookie WITHOUT putting it in the URL. Preferred
+  // over ?token= (which leaks into browser history and proxy/access logs). This
+  // route is intentionally reachable pre-auth; it validates the token itself.
+  app.post("/api/login", express.json(), (req: Request, res: Response) => {
+    const provided = typeof req.body?.token === "string" ? req.body.token : "";
+    if (!tokenMatches(provided, token)) {
+      res.status(401).json({ error: "invalid token" });
+      return;
+    }
+    res.setHeader("Set-Cookie", `tid_op=${encodeURIComponent(provided)}; ${cookieAttrs}`);
+    res.json({ status: "ok" });
+  });
+
   const auth = (req: Request, res: Response, next: NextFunction) => {
-    // Health/readiness probes are unauthenticated so k8s can scrape them.
-    if (req.path === "/healthz" || req.path === "/readyz") return next();
+    // Health/readiness probes and the login exchange are unauthenticated.
+    if (req.path === "/healthz" || req.path === "/readyz" || req.path === "/api/login") return next();
 
     const header = req.headers.authorization || "";
     const bearer = header.startsWith("Bearer ") ? header.slice(7) : "";
     const queryToken = typeof req.query.token === "string" ? req.query.token : "";
-    const cookieToken = (req.headers.cookie || "").match(/tid_op=([^;]+)/)?.[1] || "";
+    const cookieToken = decodeURIComponent((req.headers.cookie || "").match(/tid_op=([^;]+)/)?.[1] || "");
     const provided = bearer || queryToken || cookieToken;
 
     if (tokenMatches(provided, token)) {
       // Persist the token as a cookie so GUI XHRs authenticate automatically.
       if (queryToken) {
-        res.setHeader("Set-Cookie", `tid_op=${queryToken}; HttpOnly; Path=/; SameSite=Strict`);
+        res.setHeader("Set-Cookie", `tid_op=${encodeURIComponent(queryToken)}; ${cookieAttrs}`);
       }
       return next();
     }
@@ -110,11 +125,23 @@ export async function startOperatorServer(): Promise<OperatorServerHandle> {
       res.status(401).json({ error: "unauthorized" });
       return;
     }
+    // Login form: token is pasted into a field and POSTed to /api/login, so it
+    // never appears in the URL. On success the cookie is set and we reload.
     res.status(401).type("html").send(
       `<!doctype html><meta charset=utf-8><title>TID Operator</title>` +
-        `<body style="font-family:monospace;background:#0d0d0f;color:#d6cfcf;padding:40px">` +
-        `<h2>Operator console locked</h2>` +
-        `<p>Append <code>?token=YOUR_TOKEN</code> to the URL.</p></body>`
+        `<body style="font-family:monospace;background:#0d0d0f;color:#d6cfcf;display:flex;min-height:90vh;align-items:center;justify-content:center">` +
+        `<form id=f style="border:1px solid #3a2a2e;background:#141416;padding:28px;min-width:320px">` +
+        `<h2 style="margin:0 0 4px">TID-RECON-DOG</h2>` +
+        `<div style="color:#8a8080;font-size:12px;margin-bottom:16px">// OPERATOR CONSOLE — LOCKED</div>` +
+        `<input id=t type=password placeholder="operator token" autofocus autocomplete=off ` +
+        `style="width:100%;box-sizing:border-box;padding:9px;background:#0d0d0f;border:1px solid #3a2a2e;color:#d6cfcf;font-family:monospace">` +
+        `<button style="margin-top:12px;width:100%;padding:9px;background:#6e1622;border:1px solid #b13049;color:#fff;font-family:monospace;cursor:pointer">Unlock</button>` +
+        `<div id=e style="color:#c2495b;font-size:12px;margin-top:10px;min-height:14px"></div></form>` +
+        `<script>document.getElementById('f').onsubmit=async(ev)=>{ev.preventDefault();` +
+        `const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},` +
+        `body:JSON.stringify({token:document.getElementById('t').value})});` +
+        `if(r.ok){location.href='/';}else{document.getElementById('e').textContent='Invalid token.';}};</script>` +
+        `</body>`
     );
   };
 
