@@ -50,6 +50,19 @@ salvaged/archived batches in `archive_logs/` are still folded in and deduped).
 bash mlops/tidrc-ml-pipeline/scripts/sync_retrain.sh
 ```
 
+### Poisoning defense
+
+The pulled transcripts are attacker-controlled, and responders reflect input, so
+a source that suspects a honeypot could craft traffic that teaches the model to
+break character if trained on. After merging, `sync_retrain.sh` runs
+`filter_poison.py`, which **quarantines** (does not delete — poisoned records are
+themselves intel) anything unsafe to train on: break-character/AI-reveal phrases
+in the response (training target), prompt-injection in the request, oversized
+fields, control-char/binary reflection, and per-attacker floods (surplus over
+`MAX_PER_ATTACKER` down-sampled, lowest-signal first). Quarantined records and a
+stats summary land in `FLEET_RUNTIME_DIR` (`poison-quarantine.jsonl`,
+`poison-stats.json`). `POISON_DISABLE=1` skips the pass.
+
 Because nodes only back up to S3 daily, `sync_retrain.sh` defaults to `FRESH=1`:
 it first triggers `tid-backup.sh` on every running node via SSM and waits, so S3
 holds current capture before the pull. Requires AWS creds (`aws sts

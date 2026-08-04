@@ -18,6 +18,10 @@ host.key*
 mlops/*
 !mlops/RETRAIN.md
 !mlops/INFERENCE.md
+# Versioned reference copies of the ML pipeline scripts. The live pipeline
+# (mlops/tidrc-ml-pipeline/) is a separate local git repo with no remote, so
+# these copies are the actual backup + review surface. Models/venv/build stay out.
+!mlops/pipeline-scripts/
 
 # terraform state
 infra/**/.terraform/
