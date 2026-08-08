@@ -112,6 +112,42 @@ function pagerHtml(key, st, total, pages, start, shown) {
   </div>`;
 }
 
+// ---- Client-side column sort (per table) ---------------------------------
+// State persists across the auto-refresh, like pageState. Clicking a <th>
+// toggles direction; clicking a new column switches to it.
+const sortState = {};
+function sget(key, def) { if (!sortState[key]) sortState[key] = def || { col: null, dir: -1 }; return sortState[key]; }
+const RISK_ORDER = { low: 1, medium: 2, high: 3 };
+const INTENT_ORDER = { unknown: 0, recon: 1, brute_force: 2, exploitation: 3 };
+// Compare two cell values: IPv4-aware (octet order, not lexical), then numeric,
+// then natural string. ISO timestamps sort correctly as plain strings.
+function cmpVals(a, b) {
+  if (a == null && b == null) return 0;
+  if (a == null) return -1;
+  if (b == null) return 1;
+  const ipRe = /^\d{1,3}(\.\d{1,3}){3}$/;
+  if (ipRe.test(a) && ipRe.test(b)) {
+    const toN = (s) => s.split(".").reduce((n, o) => n * 256 + (+o), 0);
+    return toN(a) - toN(b);
+  }
+  if (typeof a === "number" && typeof b === "number") return a - b;
+  return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: "base" });
+}
+// Sort a copy of `rows` per the table's sort state; `accessors` maps col→value.
+function applySort(rows, key, accessors) {
+  const st = sortState[key];
+  if (!st || !st.col || !accessors[st.col]) return rows;
+  const get = accessors[st.col];
+  return rows.slice().sort((ra, rb) => cmpVals(get(ra), get(rb)) * st.dir);
+}
+// Render a clickable, sort-aware column header with a direction arrow.
+function sortableTh(key, col, label) {
+  const st = sortState[key];
+  const on = st && st.col === col;
+  const arrow = on ? (st.dir > 0 ? " ▲" : " ▼") : "";
+  return `<th class="sortable${on ? " sorted" : ""}" data-sort="${col}" data-sortkey="${key}">${label}${arrow}</th>`;
+}
+
 function setLive(ok) {
   const dot = document.getElementById("liveDot");
   const txt = document.getElementById("liveText");
@@ -226,7 +262,19 @@ async function renderAttackers() {
   const rows = await api(fleet ? "/api/fleet/attackers" : "/api/attackers");
   const panel = document.getElementById("panel");
   if (!rows.length) { panel.innerHTML = '<div class="empty">No attackers profiled yet.</div>'; return; }
-  const { slice, controls } = paginate(rows, "attackers");
+  // Default sort mirrors the server's score-desc order; headers re-sort in place.
+  sget("attackers", { col: "totalScore", dir: -1 });
+  const accessors = {
+    node: (r) => r.node || "",
+    sourceIp: (r) => r.sourceIp || "",
+    country: (r) => r.country || "",
+    risk: (r) => RISK_ORDER[r.risk] || 0,
+    intent: (r) => INTENT_ORDER[r.intent] || 0,
+    totalScore: (r) => r.totalScore || 0,
+    lastSeenAt: (r) => r.lastSeenAt || "",
+  };
+  const sorted = applySort(rows, "attackers", accessors);
+  const { slice, controls } = paginate(sorted, "attackers");
   const rowsById = {};
   const body = slice.map((r) => {
     const key = fleet ? `${r.id}|${r.node}` : r.id;
@@ -243,10 +291,10 @@ async function renderAttackers() {
   </tr>`;
   }).join("");
   panel.innerHTML = `<table><thead><tr>
-    ${fleet ? "<th>Node</th>" : ""}<th>Source IP</th><th>Geo</th><th>Risk</th><th>Intent</th><th>Score</th><th>Last Seen</th><th>What happened</th>
+    ${fleet ? sortableTh("attackers", "node", "Node") : ""}${sortableTh("attackers", "sourceIp", "Source IP")}${sortableTh("attackers", "country", "Geo")}${sortableTh("attackers", "risk", "Risk")}${sortableTh("attackers", "intent", "Intent")}${sortableTh("attackers", "totalScore", "Score")}${sortableTh("attackers", "lastSeenAt", "Last Seen")}<th>What happened</th>
   </tr></thead><tbody>${body}</tbody></table>
   ${controls}
-  <p class="cfg-note" style="margin-top:8px">${fleet ? "Fleet-wide — same IP hitting different nodes appears once per node. " : ""}Click a row for full profile, captured creds, commands & actions.</p>`;
+  <p class="cfg-note" style="margin-top:8px">${fleet ? "Fleet-wide — same IP hitting different nodes appears once per node. " : ""}Click a column header to sort (Source IP sorts by octet). Click a row for the full profile: exact commands, exploitation evidence, captured creds & activity timeline.</p>`;
   if (fleet) wireFleetAttackerDrawer(panel, rowsById); else wireRowDrawer(panel, "attacker");
 }
 
@@ -327,15 +375,32 @@ function highlightsHtml(h) {
     (items && items.length)
       ? `<div class="hl-row"><span class="hl-k">${label}</span><span class="hl-v ${cls || ""}">${items.map((x) => `<code>${df(String(x))}</code>`).join(" ")}</span></div>`
       : "";
+  // Each exploit shows the human name AND the exact request line that matched,
+  // so the operator sees precisely what was thrown, not just a category.
   const exploits = (h.exploits && h.exploits.length)
-    ? `<div class="hl-row"><span class="hl-k">Exploits</span><span class="hl-v">${h.exploits.map((e) => `<span class="pill high">${esc(e.name)}</span>`).join(" ")}</span></div>`
+    ? `<div class="hl-row"><span class="hl-k">Exploitation</span><span class="hl-v">${h.exploits.map((e) => `<div class="exp-hit"><span class="pill high">${esc(e.name)}</span>${e.evidence ? `<code>${df(String(e.evidence))}</code>` : ""}</div>`).join("")}</span></div>`
     : "";
   const inner = exploits
     + list("Credentials", h.credentials)
     + list("Files touched", h.filesTouched, "hot")
     + list("Uploads", h.uploads, "hot")
-    + list("Commands", h.commands);
+    + list("Commands run", h.commands);
   return inner ? `<div class="hl-box">${inner}</div>` : "";
+}
+
+// Renders the per-IP recentEvents as a compact, time-stamped activity timeline
+// for the attacker drawer — the "additional info" that isn't a command/exploit
+// (connections, panel hits, auth probes) in the exact order they arrived.
+function eventsTimelineHtml(events) {
+  if (!events || !events.length) return "";
+  const rows = events.slice(-40).map((raw) => {
+    const s = String(raw);
+    const m = s.match(/^\s*(\d{4}-\d{2}-\d{2}T[\d:.]+Z)\s+([\s\S]*)$/);
+    const t = m ? shortTime(m[1]) : "";
+    const detail = m ? m[2] : s;
+    return `<div class="ev-row"><span class="ev-t">${esc(t)}</span><span class="ev-d">${df(detail)}</span></div>`;
+  }).join("");
+  return `<div class="hl-box"><div class="hl-row"><span class="hl-k">Activity timeline</span><span class="hl-v"><div class="ev-list">${rows}</div></span></div></div>`;
 }
 
 function openAlertDrawer(a) {
@@ -628,7 +693,9 @@ function openDrawer(title, detail, opts) {
   const activityBlock = activity
     ? `<div class="alert-what"><div class="aw-h">What happened</div><div class="aw-b">${esc(activity.headline)}</div></div>${highlightsHtml(activity)}`
     : "";
-  body.innerHTML = actions + activityBlock + `<pre class="jsonview">${highlightJson(detail)}</pre>`;
+  const events = detail && typeof detail === "object" ? detail.recentEvents : null;
+  const timelineBlock = eventsTimelineHtml(events);
+  body.innerHTML = actions + activityBlock + timelineBlock + `<pre class="jsonview">${highlightJson(detail)}</pre>`;
   if (sourceIp && !readOnly) {
     document.getElementById("injBtn").onclick = async () => {
       const m = document.getElementById("injMsg").value;
@@ -1012,6 +1079,18 @@ document.querySelectorAll(".tab").forEach((btn) => {
 });
 // Delegated pagination controls (panel is re-rendered, so listen on its parent).
 document.getElementById("panel").addEventListener("click", (e) => {
+  const th = e.target.closest("th[data-sort]");
+  if (th) {
+    const key = th.getAttribute("data-sortkey");
+    const col = th.getAttribute("data-sort");
+    const st = sget(key, { col: null, dir: -1 });
+    if (st.col === col) st.dir = -st.dir;
+    // New column: text (IP/geo) defaults ascending, metrics/time descending.
+    else { st.col = col; st.dir = (col === "sourceIp" || col === "country" || col === "node") ? 1 : -1; }
+    if (pageState[key]) pageState[key].page = 1;
+    TAB_RENDERERS[activeTab]();
+    return;
+  }
   const b = e.target.closest("button[data-pager]");
   if (!b || b.disabled) return;
   const st = pget(b.getAttribute("data-key"));

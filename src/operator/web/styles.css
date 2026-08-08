@@ -170,6 +170,9 @@ main { padding: 18px 20px 60px; max-width: 1400px; margin: 0 auto; }
 table { width: 100%; border-collapse: collapse; font-size: 12px; }
 th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
 th { color: var(--muted); font-weight: 600; text-transform: uppercase; font-size: 10px; letter-spacing: 0.1em; }
+th.sortable { cursor: pointer; user-select: none; }
+th.sortable:hover { color: var(--text); }
+th.sortable.sorted { color: var(--burgundy-bright); }
 tbody tr:hover { background: rgba(142, 36, 56, 0.08); cursor: pointer; }
 td.wrap { white-space: normal; max-width: 380px; color: var(--muted); overflow-wrap: anywhere; word-break: break-word; }
 
@@ -254,6 +257,14 @@ button.act:disabled { opacity: 0.5; cursor: default; }
 .hl-row .hl-v { flex: 1; overflow-wrap: anywhere; word-break: break-word; line-height: 1.7; }
 .hl-row .hl-v code { background: var(--panel-2); border: 1px solid var(--line); border-radius: 3px; padding: 1px 5px; margin: 0 2px 2px 0; display: inline-block; font-size: 11px; }
 .hl-row .hl-v.hot code { color: #ff8f8f; }
+/* exploitation hits: name pill + the exact request line that matched */
+.hl-row .hl-v .exp-hit { display: block; margin-bottom: 5px; line-height: 1.9; }
+.hl-row .hl-v .exp-hit code { color: #ff8f8f; margin-left: 6px; }
+/* attacker drawer activity timeline */
+.ev-list { display: flex; flex-direction: column; gap: 3px; width: 100%; }
+.ev-row { display: flex; gap: 10px; align-items: baseline; font-size: 11.5px; }
+.ev-row .ev-t { flex: 0 0 78px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ev-row .ev-d { flex: 1; overflow-wrap: anywhere; word-break: break-word; }
 /* --- pagination --- */
 .pager { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 2px; font-size: 12px; }
 .pager .pginfo { color: var(--muted); }
