@@ -1,22 +1,18 @@
 ```
-      ______     __     __     ______
-     /\  == \   /\ \   /\ \   /\  ___\
-     \ \  __<   \ \ \  \ \ \  \ \  __\
-      \ \_\ \_\  \ \_\  \ \_\  \ \_____\
-       \/_/ /_/   \/_/   \/_/   \/_____/
+  ████████╗██╗██████╗
+  ╚══██╔══╝██║██╔══██╗         __
+     ██║   ██║██║  ██║      (___()'`;
+     ██║   ██║██║  ██║      /,    /`
+     ██║   ██║██████╔╝      \\"--\\
+     ╚═╝   ╚═╝╚═════╝
 
-T   54    A   41    N   4E    G   47    O   4F    I   49    S   53    D   44    O   4F    W   
-57    N   4E    -   2D
-R   52    E   45    C   43    O   4F    N   4E    -   2D
-D   44    O   4F    G   47
+  R E C O N · D O G   —   trap · track · analyze
+  deception + cyber-threat-intelligence platform
 
-            BRAVE NEW WORLD . .  .  .
+  54 41 4E 47 4F 49 53 44 4F 57 4E · 52 45 43 4F 4E · 44 4F 47
+   t  a  n  g  o  i  s  d  o  w  n     r  e  c  o  n     d  o  g
 
-
-           𓏺𓏺 𓎆𓎆𓏺𓏺𓏺𓏺𓏺𓏺 𓆼𓆼 𓎆𓎆 𓏺𓏺𓏺𓏺𓏺
-
-  -'ALL WARFARE IS BASED ON DECEPTION'-
-  - - -  -  - --SUN TZU'--- - -- - - -  -
+  "All warfare is based on deception."   — Sun Tzu
 ```
 
 # TID-Recon-Dog
