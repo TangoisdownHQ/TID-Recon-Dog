@@ -66,7 +66,13 @@ const defang = (s) => {
 };
 // defang + HTML-escape, for any field that may carry attacker-controlled URLs/IPs.
 const df = (s) => esc(defang(s));
-const shortTime = (iso) => { const d = new Date(iso); return isNaN(d) ? "—" : d.toLocaleTimeString(); };
+// Operator console always renders times in US Central regardless of the
+// viewer's machine locale — boxes/logs are UTC, humans diagnosing here are CDT.
+// timeZoneName:"short" auto-labels CDT (summer) / CST (winter) via DST.
+const DISPLAY_TZ = "America/Chicago";
+const TZ_TIME = { timeZone: DISPLAY_TZ, hour12: false, timeZoneName: "short" };
+const TZ_DATETIME = { timeZone: DISPLAY_TZ, hour12: false, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", timeZoneName: "short" };
+const shortTime = (iso) => { const d = new Date(iso); return isNaN(d) ? "—" : d.toLocaleTimeString("en-US", TZ_TIME); };
 const pill = (cls, text) => `<span class="pill ${esc(cls)}">${esc(text)}</span>`;
 
 // ---- Client-side pagination (per tab) ------------------------------------
@@ -811,7 +817,7 @@ function openDarkwebDetail(item, kindPill) {
   if (!item) return;
   document.getElementById("drawerTitle").textContent = "Dark-web · " + (item.kind || "item");
   const row = (k, v) => `<div class="dw-row"><span class="dw-k">${esc(k)}</span><span class="dw-v">${v}</span></div>`;
-  const when = (() => { const d = new Date(item.at); return isNaN(d) ? esc(item.at || "—") : d.toLocaleString(); })();
+  const when = (() => { const d = new Date(item.at); return isNaN(d) ? esc(item.at || "—") : d.toLocaleString("en-US", TZ_DATETIME); })();
   const tagHtml = (item.tags && item.tags.length) ? item.tags.map((t) => pill("recon", t)).join(" ") : '<span class="muted">none</span>';
   // For synthesized leak items the title is "actor → victim".
   const arrow = typeof item.title === "string" && item.title.includes(" → ") ? item.title.split(" → ") : null;
@@ -983,7 +989,7 @@ async function refresh() {
     renderBars("serviceBars", mapToEntries(overview.transcripts.byService));
     renderTimeline(timeline);
     if (!STATIC_TABS.has(activeTab)) await TAB_RENDERERS[activeTab]();
-    document.getElementById("lastUpdated").textContent = "updated " + new Date().toLocaleTimeString();
+    document.getElementById("lastUpdated").textContent = "updated " + new Date().toLocaleTimeString("en-US", TZ_TIME);
     setLive(true);
   } catch (e) {
     setLive(false);
