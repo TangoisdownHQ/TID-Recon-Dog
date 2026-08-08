@@ -25,7 +25,7 @@ import {
 import { logError, logWarning } from "../utils/logger.js";
 import { PANELS, PanelDefinition, renderDbTable, renderDbResult } from "../responders/webPanels.js";
 import { getServiceProfile } from "../profiles/serviceProfiles.js";
-import { jitter, nginxErrorPage, serverTokenFromBanner } from "../utils/hardening.js";
+import { jitter, sendNginxError, serverTokenFromBanner } from "../utils/hardening.js";
 import { isIpBlockedSync } from "../operator/controlPlane.js";
 
 const uploadsDir = path.resolve("uploads");
@@ -457,7 +457,7 @@ export async function startHttpService() {
       handler: async (req, res) => {
         const ip = getClientIp(req);
         await logWarning("HTTP", ip, "Rate limit exceeded");
-        res.status(503).type("html").send(nginxErrorPage(503, serverToken));
+        sendNginxError(res, 503, serverToken);
       },
     })
   );
@@ -865,10 +865,10 @@ export async function startHttpService() {
     }
 
     try {
-      // Unknown paths behave like a real nginx vhost: a 404, not a chatty relay
-      // banner that leaks internal hostnames and screams "honeypot". The
-      // interaction is still recorded so scanning is captured.
-      const body = nginxErrorPage(404, serverToken);
+      // Unknown paths (favicon.ico, robots.txt, sitemap.xml, scanner probes)
+      // behave like a real nginx vhost: a byte- and header-accurate 404, not a
+      // chatty relay banner that leaks internal hostnames and screams honeypot.
+      // The interaction is still recorded so scanning is captured.
       await recordInteractionEvent({
         sessionId,
         service: "HTTP",
@@ -879,10 +879,10 @@ export async function startHttpService() {
         request: `${req.method} ${req.originalUrl}`,
         response: "404",
       });
-      res.status(404).type("html").send(body);
+      sendNginxError(res, 404, serverToken);
     } catch (error) {
       await logError("HTTP", ip, "Responder error in catch-all", { error: String(error) });
-      res.status(500).type("html").send(nginxErrorPage(500, serverToken));
+      sendNginxError(res, 500, serverToken);
     }
   });
 
@@ -891,7 +891,7 @@ export async function startHttpService() {
   // Answer like a real nginx would (400) instead of leaving it unhandled.
   app.use((err: Error, _req: Request, res: Response, next: (e?: unknown) => void) => {
     if (err instanceof URIError) {
-      res.status(400).type("html").send(nginxErrorPage(400, serverToken));
+      sendNginxError(res, 400, serverToken);
       return;
     }
     next(err);

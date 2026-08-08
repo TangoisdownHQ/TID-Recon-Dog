@@ -46,6 +46,46 @@ export function nginxErrorPage(status: number, serverToken: string): string {
 }
 
 /**
+ * Minimal shape of the response object we need — avoids importing express types
+ * here (this module is framework-agnostic on purpose).
+ */
+interface ErrorRes {
+  removeHeader(name: string): void;
+  writeHead(status: number, headers: Record<string, string | number>): void;
+  end(body: string): void;
+}
+
+/**
+ * Send an nginx error response with headers that match real nginx, not Express.
+ *
+ * Two tells that Express's `res.status().type("html").send()` produces on the
+ * built-in error pages that recon tooling (httpx, nmap http-fingerprint) checks:
+ *   1. `Content-Type: text/html; charset=utf-8` — nginx's default error pages
+ *      are `text/html` with NO charset. Express always appends the charset.
+ *   2. Header order — Express emits Content-Type/Content-Length before Date;
+ *      nginx emits Date first. We remove Express's auto-set headers and write
+ *      them in nginx's exact order via writeHead.
+ * Content pages (login panels) keep charset=utf-8 like a real app would; this
+ * helper is only for the server's own error responses.
+ */
+export function sendNginxError(res: ErrorRes, status: number, serverToken: string): void {
+  const body = nginxErrorPage(status, serverToken);
+  // Drop anything Express/middleware pre-set so writeHead controls the wire order.
+  for (const h of ["Server", "Content-Type", "Content-Length", "Date", "Connection", "Keep-Alive"]) {
+    res.removeHeader(h);
+  }
+  res.writeHead(status, {
+    Server: serverToken,
+    Date: new Date().toUTCString(),
+    "Content-Type": "text/html",
+    "Content-Length": Buffer.byteLength(body),
+    Connection: "keep-alive",
+    "Keep-Alive": "timeout=5",
+  });
+  res.end(body);
+}
+
+/**
  * A plausible modern-OpenSSH algorithm offer. ssh2's defaults differ from
  * OpenSSH, which shifts the KEXINIT/HASSH fingerprint; this aligns the offered
  * key-exchange/cipher/MAC/hostkey lists with what OpenSSH 8.9 advertises.
