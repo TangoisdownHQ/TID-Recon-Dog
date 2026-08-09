@@ -1,6 +1,6 @@
 import { appendTranscript } from "../deception_engine/logging/transcript_store.js";
 import { upsertSession } from "../deception_engine/session/session_manager.js";
-import { updateAttackerMemory } from "../deception_engine/state/attacker_memory.js";
+import { updateAttackerMemory, recordCanaryHit } from "../deception_engine/state/attacker_memory.js";
 import { logInteraction } from "../utils/logger.js";
 import { normalizeServiceName } from "./serviceNames.js";
 import { sanitizeMetadata, sanitizeText } from "./safety.js";
@@ -44,7 +44,15 @@ export async function recordInteractionEvent(params: {
   ]
     .filter(Boolean)
     .join("\n");
-  void checkCanaryTrigger(canaryInput, { ip: params.ip, service: normalizedService });
+  void checkCanaryTrigger(canaryInput, { ip: params.ip, service: normalizedService }).then((hits) => {
+    if (hits.length) {
+      void recordCanaryHit({
+        sourceIp: params.ip,
+        service: normalizedService,
+        labels: hits.map((h) => h.label),
+      });
+    }
+  });
 
   const safeDetail = sanitizeText(params.detail, resolution.serviceMemory.host, 512);
   const safeMetadata = sanitizeMetadata(params.metadata, resolution.serviceMemory.host);

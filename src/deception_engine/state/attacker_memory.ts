@@ -399,6 +399,33 @@ export function summarizeAttacker(profile: AttackerProfile): ActivitySummary {
   return summarizeActivity(input);
 }
 
+/**
+ * Attach a canary-token trigger to the profile of the source that USED a planted
+ * secret: a high-signal recentEvent, a large score bump (canary use is the
+ * strongest signal we have — always escalate to high risk), and forced
+ * exploitation intent. This surfaces canary hits in the Attackers tab / drawer
+ * timeline, not just the Alerts and Canaries tabs.
+ */
+export async function recordCanaryHit(params: {
+  sourceIp: string;
+  service: ResponderServiceName;
+  labels: string[];
+}): Promise<void> {
+  const { attacker, serviceMemory } = await resolveAttackerService(params.sourceIp, params.service);
+  const now = new Date().toISOString();
+  const label = params.labels.join(", ");
+  attacker.recentEvents.push(
+    `${now} ${sanitizeText(`CANARY TRIGGERED — used planted secret: ${label}`, serviceMemory.host, 200)}`
+  );
+  attacker.recentEvents = attacker.recentEvents.slice(-20);
+  attacker.totalScore += 45 * Math.max(1, params.labels.length);
+  attacker.risk = deriveRisk(attacker.totalScore);
+  attacker.intentCounts.exploitation += 2;
+  attacker.intent = deriveIntent(attacker);
+  attacker.lastSeenAt = now;
+  scheduleFlush();
+}
+
 export async function listAttackers(): Promise<AttackerProfile[]> {
   await hydrate();
   return Array.from(attackers.values()).sort((a, b) => b.lastSeenAt.localeCompare(a.lastSeenAt));
