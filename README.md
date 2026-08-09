@@ -10,7 +10,7 @@
   deception + cyber-threat-intelligence platform
 
   54 41 4E 47 4F 49 53 44 4F 57 4E · 52 45 43 4F 4E · 44 4F 47
-   t  a  n  g  o  i  s  d  o  w  n     r  e  c  o  n     d  o  g
+
 
   "All warfare is based on deception."   — Sun Tzu
 ```
