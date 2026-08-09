@@ -177,6 +177,24 @@ async function fireCanaryAlert(
   });
 }
 
+/**
+ * Compact snapshot of this node's canary state for reporting to the fleet
+ * master, which correlates served↔trigger events across nodes. Bounded so the
+ * self-report payload stays small.
+ */
+export async function getCanaryExport(): Promise<{
+  served: Record<string, CanaryEvent[]>;
+  triggers: Record<string, CanaryEvent[]>;
+}> {
+  await ensureLoaded();
+  const trim = (m: Record<string, CanaryEvent[]>) => {
+    const out: Record<string, CanaryEvent[]> = {};
+    for (const [k, v] of Object.entries(m)) if (v.length) out[k] = v.slice(-25);
+    return out;
+  };
+  return { served: trim(state.served), triggers: trim(state.triggers) };
+}
+
 /** Operator API view: every token with its served/trigger history and counts. */
 export async function listCanaries() {
   await ensureLoaded();

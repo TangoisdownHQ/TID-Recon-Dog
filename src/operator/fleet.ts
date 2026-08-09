@@ -12,10 +12,13 @@ import { buildOverview, buildFeed, buildTimeline, OverviewMetrics, TimelinePoint
 import { getNodeStatus, getNodeNetwork, getNodePorts, getNodeMisc } from "./nodeStatus.js";
 import { listAttackers, summarizeAttacker } from "../deception_engine/state/attacker_memory.js";
 import { readSessionSnapshots } from "../utils/logger.js";
+import { CANARY_TOKENS, CanaryEvent, getCanaryExport } from "../deception_engine/canary/canaryTokens.js";
+import { emitAlert } from "./alertHook.js";
 
 const filePath = path.resolve("runtime", "fleet.json");
 const feedPath = path.resolve("runtime", "fleet-feed.json");
 const detailPath = path.resolve("runtime", "fleet-detail.json");
+const canaryPath = path.resolve("runtime", "fleet-canary.json");
 
 export type FleetNode = {
   nodeId: string;
@@ -260,6 +263,140 @@ function readSessionTail(sessions: Array<Record<string, unknown>>, limit: number
   return sessions.slice(-limit).map((s) => ({ ...s, node: name }));
 }
 
+// --- Fleet-wide canary correlation -------------------------------------------
+// Each node reports its honeytoken served/trigger events; the master indexes
+// served events across ALL nodes so a secret READ on one node and USED on
+// another can be attributed cross-node — the highest-signal deception event.
+// The master is also the single point where a trigger becomes VISIBLE in the
+// operator console (node-local alerts aren't forwarded), so it fires the alert.
+export type NodeCanaryReport = {
+  node: string;
+  at: string;
+  served: Record<string, CanaryEvent[]>;
+  triggers: Record<string, CanaryEvent[]>;
+};
+
+type NodeCanarySnap = { at: string; served: Record<string, CanaryEvent[]>; triggers: Record<string, CanaryEvent[]> };
+type FleetCanaryStore = { nodes: Record<string, NodeCanarySnap>; alerted: string[] };
+
+async function readCanaryStore(): Promise<FleetCanaryStore> {
+  try {
+    const s = JSON.parse(await fs.readFile(canaryPath, "utf8")) as Partial<FleetCanaryStore>;
+    return { nodes: s.nodes || {}, alerted: s.alerted || [] };
+  } catch {
+    return { nodes: {}, alerted: [] };
+  }
+}
+
+async function writeCanaryStore(store: FleetCanaryStore): Promise<void> {
+  await fs.mkdir(path.dirname(canaryPath), { recursive: true });
+  await fs.writeFile(canaryPath, JSON.stringify(store), "utf8");
+}
+
+/** Ingest a node's canary report, correlate new triggers fleet-wide, alert. */
+export async function reportCanary(rep: NodeCanaryReport): Promise<void> {
+  if (!rep || !rep.node) return;
+  const store = await readCanaryStore();
+  store.nodes[rep.node] = { at: rep.at, served: rep.served || {}, triggers: rep.triggers || {} };
+  await correlateCanaryTriggers(store);
+  await writeCanaryStore(store);
+}
+
+type ServedRef = { node: string; ip: string; service: string; at: string };
+
+async function correlateCanaryTriggers(store: FleetCanaryStore): Promise<void> {
+  const master = nodeName();
+  const alerted = new Set(store.alerted || []);
+  // Fleet-wide served index per token id.
+  const servedIdx: Record<string, ServedRef[]> = {};
+  for (const [node, snap] of Object.entries(store.nodes)) {
+    for (const [tid, evs] of Object.entries(snap.served || {})) {
+      (servedIdx[tid] ||= []).push(...evs.map((e) => ({ node, ip: e.ip, service: e.service, at: e.at })));
+    }
+  }
+
+  for (const [node, snap] of Object.entries(store.nodes)) {
+    for (const [tid, evs] of Object.entries(snap.triggers || {})) {
+      const token = CANARY_TOKENS.find((t) => t.id === tid);
+      for (const ev of evs) {
+        const key = `${node}|${tid}|${ev.at}|${ev.ip}`;
+        if (alerted.has(key)) continue;
+        // Reads at or before the trigger (1s slack for clock skew).
+        const priors = (servedIdx[tid] || []).filter((s) => Date.parse(s.at) <= Date.parse(ev.at) + 1000);
+        const crossNode = priors
+          .filter((s) => s.node !== node)
+          .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))[0];
+        const sameNode = priors.sort((a, b) => Date.parse(b.at) - Date.parse(a.at))[0];
+        const prior = crossNode || sameNode;
+        const isCross = !!crossNode;
+
+        // The master's own same-node triggers already alerted locally (and are
+        // visible here); only (re)fire for remote nodes or genuine cross-node use.
+        if (node === master && !isCross) {
+          alerted.add(key);
+          continue;
+        }
+
+        const label = token?.label || tid;
+        const planted = token?.plantedPath || "?";
+        let attribution: string;
+        if (isCross && prior) {
+          const dt = Math.max(0, Math.round((Date.parse(ev.at) - Date.parse(prior.at)) / 60000));
+          attribution = `Secret was READ on node "${prior.node}" by ${prior.ip} (${prior.service}) ${dt}m earlier — now USED on node "${node}" by ${ev.ip}. CROSS-NODE lateral movement.`;
+        } else if (prior) {
+          const dt = Math.max(0, Math.round((Date.parse(ev.at) - Date.parse(prior.at)) / 60000));
+          attribution = `Read and used on node "${node}"; served to ${prior.ip} (${prior.service}) ${dt}m earlier.`;
+        } else {
+          attribution = `Used on node "${node}" by ${ev.ip}; no prior read seen across the fleet — likely exfiltrated out-of-band.`;
+        }
+        const summary = `CANARY TRIGGERED (fleet): ${label} (planted in ${planted}) — ${attribution}`;
+        await emitAlert({
+          at: ev.at,
+          event: "canary_triggered",
+          attacker_id: "canary",
+          source_ip: ev.ip,
+          risk: "high",
+          previous_risk: "medium",
+          intent: "exploitation",
+          services: [`${node}/${ev.service}`],
+          score: 0,
+          recent_events: [summary],
+          summary,
+        });
+        alerted.add(key);
+      }
+    }
+  }
+  store.alerted = [...alerted].slice(-500);
+}
+
+/** Fleet-wide canary view for the operator console (Fleet scope). */
+export async function fleetCanaries() {
+  const store = await readCanaryStore();
+  return CANARY_TOKENS.map((t) => {
+    const served: Array<CanaryEvent & { node: string }> = [];
+    const triggers: Array<CanaryEvent & { node: string }> = [];
+    for (const [node, snap] of Object.entries(store.nodes)) {
+      for (const e of snap.served?.[t.id] || []) served.push({ ...e, node });
+      for (const e of snap.triggers?.[t.id] || []) triggers.push({ ...e, node });
+    }
+    served.sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
+    triggers.sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
+    return {
+      id: t.id,
+      kind: t.kind,
+      label: t.label,
+      plantedPath: t.plantedPath,
+      servedCount: served.length,
+      triggerCount: triggers.length,
+      served: served.slice(-10),
+      triggers: triggers.slice(-10),
+      lastServed: served[served.length - 1]?.at || null,
+      lastTrigger: triggers[triggers.length - 1]?.at || null,
+    };
+  });
+}
+
 async function readAll(): Promise<Record<string, FleetNode>> {
   try {
     return JSON.parse(await fs.readFile(filePath, "utf8")) as Record<string, FleetNode>;
@@ -326,6 +463,7 @@ export async function selfReport(): Promise<void> {
   const node = await buildSelfReport();
   const feed = await buildFeedItems();
   const detail = await buildDetail();
+  const canary: NodeCanaryReport = { node: node.name, at: new Date().toISOString(), ...(await getCanaryExport()) };
   const master = process.env.FLEET_MASTER_URL;
   if (master) {
     const base = master.replace(/\/$/, "");
@@ -346,9 +484,11 @@ export async function selfReport(): Promise<void> {
     await post("/api/fleet/report", node);
     await post("/api/fleet/feed", { node: node.name, items: feed });
     await post("/api/fleet/detail", detail);
+    await post("/api/fleet/canary", canary);
   } else {
     await reportNode(node);
     await reportFeed(node.name, feed);
     await reportDetail(detail);
+    await reportCanary(canary);
   }
 }

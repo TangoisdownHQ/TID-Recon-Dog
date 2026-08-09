@@ -18,7 +18,7 @@ import { readShadow } from "../../deception_engine/logging/shadow_store.js";
 import { isAiConfigured } from "../../responders/aiEngine.js";
 import { buildIocs, buildAttackMatrix, buildActors, buildCampaigns, buildNovelty } from "../../cti/iocEngine.js";
 import { readPlaybooks, writePlaybooks, Playbook } from "../playbooks.js";
-import { listNodes, reportNode, selfReport, listFleetFeed, reportFeed, reportDetail, fleetOverview, fleetTimeline, fleetAttackers, fleetSessions, FleetNode, FleetDetail } from "../fleet.js";
+import { listNodes, reportNode, selfReport, listFleetFeed, reportFeed, reportDetail, fleetOverview, fleetTimeline, fleetAttackers, fleetSessions, reportCanary, fleetCanaries, FleetNode, FleetDetail, NodeCanaryReport } from "../fleet.js";
 import { buildStixBundle, buildMispEvent, buildBlocklist } from "../../cti/export.js";
 import { enrichmentProviders } from "../../cti/enrich.js";
 import { forwardingTargets } from "../../cti/forward.js";
@@ -445,6 +445,16 @@ export async function startOperatorServer(): Promise<OperatorServerHandle> {
   });
   app.get("/api/fleet/attackers", async (_req, res) => res.json(await fleetAttackers()));
   app.get("/api/fleet/sessions", async (_req, res) => res.json(await fleetSessions()));
+  app.post("/api/fleet/canary", async (req, res) => {
+    const c = req.body as NodeCanaryReport;
+    if (!c || !c.node) {
+      res.status(400).json({ error: "invalid canary report" });
+      return;
+    }
+    await reportCanary(c);
+    res.json({ status: "ok" });
+  });
+  app.get("/api/fleet/canaries", async (_req, res) => res.json(await fleetCanaries()));
 
   app.get("/metrics", async (_req, res) => {
     res.type("text/plain").send(await buildPrometheus());

@@ -457,24 +457,35 @@ async function renderAlerts() {
 }
 
 async function renderCanaries() {
-  const rows = await api("/api/canaries");
+  const fleet = isFleet();
+  const rows = await api(fleet ? "/api/fleet/canaries" : "/api/canaries");
   const panel = document.getElementById("panel");
   const triggered = rows.filter((r) => r.triggerCount > 0);
   const served = rows.reduce((s, r) => s + r.servedCount, 0);
+  // Flag tokens whose read-node and use-node differ — lateral movement.
+  const crossNode = (r) => {
+    if (!fleet || !r.triggerCount) return false;
+    const readNodes = new Set((r.served || []).map((s) => s.node));
+    return (r.triggers || []).some((t) => readNodes.size && !readNodes.has(t.node));
+  };
+  const crossCount = rows.filter(crossNode).length;
   const kpi = `<div class="canary-kpis">
     <div class="kpi"><div class="k-label">Planted tokens</div><div class="k-value">${rows.length}</div></div>
     <div class="kpi"><div class="k-label">Served (read)</div><div class="k-value">${served}</div></div>
     <div class="kpi${triggered.length ? " alert" : ""}"><div class="k-label">Triggered</div><div class="k-value">${triggered.length}</div></div>
+    ${fleet ? `<div class="kpi${crossCount ? " alert" : ""}"><div class="k-label">Cross-node</div><div class="k-value">${crossCount}</div></div>` : ""}
   </div>`;
   // Triggered tokens float to the top so a live "read here, used there" event is
   // the first thing the operator sees.
   const ordered = rows.slice().sort((a, b) => (b.triggerCount - a.triggerCount) || (b.servedCount - a.servedCount));
+  const tag = (e) => (fleet && e.node ? `${df(e.ip)} (${esc(e.node)}/${esc(e.service)})` : `${df(e.ip)} (${esc(e.service)})`);
   const body = ordered.map((r) => {
     const hot = r.triggerCount > 0;
-    const usedBy = (r.triggers || []).slice(-3).map((t) => `${df(t.ip)} (${esc(t.service)})`).join(", ");
+    const xn = crossNode(r);
+    const usedBy = (r.triggers || []).slice(-3).map(tag).join(", ");
     const last = r.lastTrigger ? shortTime(r.lastTrigger) : "";
     return `<tr class="${hot ? "canary-hot" : ""}">
-      <td>${hot ? "🚨 " : ""}${esc(r.label)}</td>
+      <td>${hot ? "🚨 " : ""}${esc(r.label)}${xn ? ' <span class="pill high">CROSS-NODE</span>' : ""}</td>
       <td>${pill("recon", r.kind)}</td>
       <td class="muted">${esc(r.plantedPath)}</td>
       <td>${esc(r.servedCount)}${r.lastServed ? ` <span class="muted">${shortTime(r.lastServed)}</span>` : ""}</td>
@@ -485,7 +496,7 @@ async function renderCanaries() {
   panel.innerHTML = kpi + `<table><thead><tr>
     <th>Honeytoken</th><th>Type</th><th>Planted in</th><th>Served</th><th>Triggered</th><th>Last use</th>
   </tr></thead><tbody>${body}</tbody></table>
-  <p class="cfg-note" style="margin-top:8px">Fake secrets planted in the decoy filesystem. <b>Served</b> = an attacker read the file containing it; <b>Triggered</b> = a planted secret was later <i>used</i> against a listener (login, beacon fetch, or command) — which fires a high-severity alert with attribution (who read it vs. who used it). The secrets are inert; using one only exposes the attacker.</p>`;
+  <p class="cfg-note" style="margin-top:8px">Fake secrets planted in the decoy filesystem. <b>Served</b> = an attacker read the file containing it; <b>Triggered</b> = a planted secret was later <i>used</i> against a listener (login, beacon fetch, or command) — fires a high-severity alert with attribution. ${fleet ? "Fleet scope correlates reads and uses <b>across nodes</b>: a <span class=\"pill high\">CROSS-NODE</span> tag means the secret was read on one node and used on another — lateral movement." : "Switch to Fleet scope to correlate reads/uses across all nodes."} The secrets are inert; using one only exposes the attacker.</p>`;
 }
 
 const ACTIONS = ["allow", "stall", "fake_error", "decoy_success", "camera_offline"];
