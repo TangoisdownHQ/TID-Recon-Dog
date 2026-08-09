@@ -6,6 +6,7 @@ import { normalizeServiceName } from "./serviceNames.js";
 import { sanitizeMetadata, sanitizeText } from "./safety.js";
 import { forwardEvent } from "../cti/forward.js";
 import { evaluatePlaybooks } from "../operator/playbooks.js";
+import { noteCanaryServed, checkCanaryTrigger } from "../deception_engine/canary/canaryTokens.js";
 
 export async function recordInteractionEvent(params: {
   sessionId: string;
@@ -30,6 +31,20 @@ export async function recordInteractionEvent(params: {
     detail: params.detail,
     patch: params.patch,
   });
+
+  // Honeytokens: record which planted secret we just served (scan our reply),
+  // and fire an attributed alert if the attacker's own input uses one (scan raw
+  // request/command/creds/detail — before sanitization strips them).
+  void noteCanaryServed(params.response, { ip: params.ip, service: normalizedService });
+  const canaryInput = [
+    params.request,
+    params.patch?.command,
+    params.detail,
+    (params.patch?.usernames || []).join(" "),
+  ]
+    .filter(Boolean)
+    .join("\n");
+  void checkCanaryTrigger(canaryInput, { ip: params.ip, service: normalizedService });
 
   const safeDetail = sanitizeText(params.detail, resolution.serviceMemory.host, 512);
   const safeMetadata = sanitizeMetadata(params.metadata, resolution.serviceMemory.host);

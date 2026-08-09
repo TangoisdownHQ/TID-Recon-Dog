@@ -100,6 +100,19 @@ export async function readAlerts(): Promise<AlertPayload[]> {
   }
 }
 
+/**
+ * Persist an alert and fan it out to webhook + Telegram. Shared by the
+ * risk-escalation path and the canary-trigger path. Best-effort on delivery.
+ */
+export async function emitAlert(payload: AlertPayload): Promise<void> {
+  await writeAlertLog(payload);
+  const webhookUrl = process.env.ALERT_WEBHOOK_URL;
+  if (webhookUrl) {
+    void fireWebhook(webhookUrl, payload);
+  }
+  void fireTelegram(payload);
+}
+
 export async function maybeFireAlert(params: {
   attackerId: string;
   sourceIp: string;
@@ -115,7 +128,7 @@ export async function maybeFireAlert(params: {
   const rankOf = (r: string) => (r === "high" ? 2 : r === "medium" ? 1 : 0);
   if (rankOf(params.risk) <= rankOf(params.previousRisk)) return;
 
-  const payload: AlertPayload = {
+  await emitAlert({
     at: new Date().toISOString(),
     event: "risk_escalation",
     attacker_id: params.attackerId.slice(0, 12),
@@ -128,13 +141,5 @@ export async function maybeFireAlert(params: {
     recent_events: params.recentEvents.slice(-3),
     summary: params.highlights?.headline,
     highlights: params.highlights,
-  };
-
-  await writeAlertLog(payload);
-
-  const webhookUrl = process.env.ALERT_WEBHOOK_URL;
-  if (webhookUrl) {
-    void fireWebhook(webhookUrl, payload);
-  }
-  void fireTelegram(payload);
+  });
 }

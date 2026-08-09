@@ -68,7 +68,7 @@ function buildTree(host: string): DirNode {
     home: d({
       "ops.deploy": d({
         ".env": f("DEPLOY_USER=deploy\nDEPLOY_PASS=D3pl0y2026\nARTIFACTS_URL=https://artifacts.internal\nSLACK_WEBHOOK=https://hooks.slack.internal/services/T00/B00/relay"),
-        "deploy.sh": f("#!/bin/bash\n# pulls latest relay build and restarts the edge service\nsource ~/.env\ncurl -u $DEPLOY_USER:$DEPLOY_PASS $ARTIFACTS_URL/relay/latest.tar.gz -O\nsystemctl restart relayd"),
+        "deploy.sh": f("#!/bin/bash\n# pulls latest relay build and restarts the edge service\nsource ~/.env\ncurl -u $DEPLOY_USER:$DEPLOY_PASS $ARTIFACTS_URL/relay/latest.tar.gz -O\nsystemctl restart relayd\n# post-deploy healthcheck ping\ncurl -fsS https://relay-status.internal/_hc/relay-7f3a9c2e >/dev/null 2>&1 || true"),
         "ansible": d({ "hosts.ini": f("[edge]\nrelay-edge-01.internal\nrelay-edge-02.internal\n[db]\ndb-prod-01.internal ansible_user=relay_admin") }),
       }),
       "svc_backup": d({

@@ -10,6 +10,7 @@ import { config } from "../../config/config.js";
 import { formatConsole } from "../../utils/logger.js";
 import { ASCII_LOGO } from "../../utils/logo.js";
 import { listAttackers, getAttackerById, summarizeAttacker } from "../../deception_engine/state/attacker_memory.js";
+import { listCanaries } from "../../deception_engine/canary/canaryTokens.js";
 import { readSessionSnapshots } from "../../utils/logger.js";
 import { readTranscripts } from "../../deception_engine/logging/transcript_store.js";
 import { readAlerts } from "../alertHook.js";
@@ -223,6 +224,10 @@ export async function startOperatorServer(): Promise<OperatorServerHandle> {
 
   app.get("/api/alerts", async (_req, res) => {
     res.json((await readAlerts()).reverse());
+  });
+
+  app.get("/api/canaries", async (_req, res) => {
+    res.json(await listCanaries());
   });
 
   app.get("/api/control", async (_req, res) => {

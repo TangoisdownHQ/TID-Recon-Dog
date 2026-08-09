@@ -265,6 +265,10 @@ button.act:disabled { opacity: 0.5; cursor: default; }
 .ev-row { display: flex; gap: 10px; align-items: baseline; font-size: 11.5px; }
 .ev-row .ev-t { flex: 0 0 78px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ev-row .ev-d { flex: 1; overflow-wrap: anywhere; word-break: break-word; }
+/* --- canaries tab --- */
+.canary-kpis { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.canary-kpis .kpi { flex: 1 1 140px; }
+tr.canary-hot td { background: rgba(177, 48, 73, 0.12); }
 /* --- pagination --- */
 .pager { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 2px; font-size: 12px; }
 .pager .pginfo { color: var(--muted); }
