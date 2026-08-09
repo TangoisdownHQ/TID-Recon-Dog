@@ -235,24 +235,33 @@ async function buildDetail(): Promise<FleetDetail> {
     readSessionSnapshots(),
   ]);
   const attackerRows: AttackerRow[] = attackers
-    .map((a) => ({
-      node: name,
-      id: a.id,
-      sourceIp: a.sourceIp,
-      risk: a.risk,
-      intent: a.intent,
-      totalScore: a.totalScore,
-      country: a.geo?.countryCode || "??",
-      isp: a.geo?.isp || "",
-      services: Object.keys(a.services),
-      firstSeenAt: a.firstSeenAt,
-      lastSeenAt: a.lastSeenAt,
-      connections: a.counters.connections,
-      authAttempts: a.counters.authAttempts,
-      commands: a.counters.commands,
-      uploads: a.counters.uploads,
-      summary: summarizeAttacker(a).headline,
-    }))
+    .map((a) => {
+      // Full structured activity so the fleet-scope drawer shows the SAME detail
+      // as the node-local drawer: exploit name + exact evidence, the exact
+      // commands run, uploaded filenames, and files touched — not just a
+      // one-line headline. recentEvents feeds the drawer's activity timeline.
+      const activity = summarizeAttacker(a);
+      return {
+        node: name,
+        id: a.id,
+        sourceIp: a.sourceIp,
+        risk: a.risk,
+        intent: a.intent,
+        totalScore: a.totalScore,
+        country: a.geo?.countryCode || "??",
+        isp: a.geo?.isp || "",
+        services: Object.keys(a.services),
+        firstSeenAt: a.firstSeenAt,
+        lastSeenAt: a.lastSeenAt,
+        connections: a.counters.connections,
+        authAttempts: a.counters.authAttempts,
+        commands: a.counters.commands,
+        uploads: a.counters.uploads,
+        summary: activity.headline,
+        activity,
+        recentEvents: (a.recentEvents || []).slice(-12),
+      };
+    })
     .sort((a, b) => (b.totalScore || 0) - (a.totalScore || 0))
     .slice(0, ATTACKERS_PER_NODE);
   const sessionRows: SessionRow[] = readSessionTail(sessions, SESSIONS_PER_NODE, name);
