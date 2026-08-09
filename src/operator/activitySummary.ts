@@ -68,13 +68,18 @@ function uniq(items: string[], cap: number): string[] {
 
 export function summarizeActivity(input: ActivityInput): ActivitySummary {
   const events = (input.events || []).map(stripTs);
-  const cmds = input.commands || [];
+  // commandHistory entries are already the EXACT commands/queries the attacker
+  // ran (ssh/telnet input, http shell cmd, SQL) — no prefix to strip.
+  const cmds = (input.commands || []).map((c) => c.trim()).filter(Boolean);
   const lines = [...events, ...cmds];
 
   const credentials: string[] = [...(input.usernames || [])];
   const filesTouched: string[] = [];
   const uploads: string[] = [];
-  const commands: string[] = [];
+  // Seed with the exact captured commands so plain shell input (ls, whoami,
+  // uname -a) is shown verbatim, not filtered out by the free-text heuristic
+  // below (which only matched SQL or "cmd:/shell input=/exec command=" prefixes).
+  const commands: string[] = cmds.map((c) => c.slice(0, 160));
   const exploits: ExploitHit[] = [];
   const seenExploit = new Set<string>();
 
@@ -101,12 +106,15 @@ export function summarizeActivity(input: ActivityInput): ActivitySummary {
       uploads.push(up && up[1] ? up[1] : "file upload");
     }
 
-    // Notable commands / SQL
-    if (/^\s*(SELECT|INSERT|UPDATE|DELETE|DROP|COPY)\b/i.test(line) || /\bunion\s+select\b/i.test(line)) {
-      commands.push(line.slice(0, 120));
-    } else {
-      const shell = line.match(/(?:cmd:|shell input=|exec command=)\s*(.+)/i);
-      if (shell && shell[1] && !/^enable$/i.test(shell[1].trim())) commands.push(shell[1].slice(0, 120));
+    // Notable commands / SQL — only from free-text events; the exact commands
+    // from commandHistory are already seeded above, so don't re-extract them.
+    if (events.includes(line)) {
+      if (/^\s*(SELECT|INSERT|UPDATE|DELETE|DROP|COPY)\b/i.test(line) || /\bunion\s+select\b/i.test(line)) {
+        commands.push(line.slice(0, 160));
+      } else {
+        const shell = line.match(/(?:cmd:|shell input=|exec command=)\s*(.+)/i);
+        if (shell && shell[1] && !/^enable$/i.test(shell[1].trim())) commands.push(shell[1].slice(0, 160));
+      }
     }
 
     // Exploit signatures
@@ -125,7 +133,7 @@ export function summarizeActivity(input: ActivityInput): ActivitySummary {
   const creds = uniq(credentials, 12);
   const files = uniq(filesTouched, 15);
   const ups = uniq(uploads, 8);
-  const cmdList = uniq(commands, 8);
+  const cmdList = uniq(commands, 15);
 
   return {
     headline: buildHeadline(input, { creds, files, ups, cmdList, exploits }),
