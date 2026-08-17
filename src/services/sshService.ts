@@ -73,13 +73,20 @@ export async function startSshService() {
       const attemptDetails = `username=${ctx.username} method=${ctx.method}`;
       const decision = buildSshAuthentication(action);
       authenticatedUser = ctx.username || authenticatedUser;
+      // Record each credential attempt as a request/response transcript (like
+      // Postgres/SMTP) so brute-force auth is captured in the corpus and counts
+      // as a service hit — otherwise rejected bots that never reach a shell
+      // produce sessions but zero transcripts and vanish from the hits chart.
+      const attemptedPassword = ctx.method === "password" ? (ctx as { password?: string }).password || "" : "";
       await recordInteractionEvent({
         sessionId,
         service: "SSH",
         ip: remoteAddress,
         detail: `auth ${attemptDetails}`,
         currentAction: action,
-        metadata: { username: ctx.username, method: ctx.method },
+        metadata: { username: ctx.username, method: ctx.method, password_length: attemptedPassword.length },
+        request: `AUTH ${attemptDetails}`,
+        response: decision.accept ? "authentication accepted" : "authentication failed",
         patch: {
           usernames: [ctx.username],
         },
