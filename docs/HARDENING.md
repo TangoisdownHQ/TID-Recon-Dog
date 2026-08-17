@@ -28,8 +28,8 @@ specific vendor's detection.
 
 ## Deployment-level hardening (important)
 
-The strongest tell is structural: a **single IP exposing 10 unrelated services**
-(camera + Postgres + Modbus + SSH + RDP + SMTP …) does not look like a real host
+The strongest tell is structural: a **single IP exposing 11 unrelated services**
+(camera + Postgres + Modbus + SSH + RDP + SMTP + Redis …) does not look like a real host
 — real hosts are specialized. In production, split personas across IPs/hosts so
 each endpoint exposes only the ports its device type would:
 
@@ -40,6 +40,7 @@ each endpoint exposes only the ports its device type would:
 | plc_controller | 502 (Modbus), 161 (SNMP) |
 | jump_host | 22 (SSH), 3389 (RDP) |
 | mail_relay | 25 (SMTP) |
+| cache_node | 6379 (Redis) |
 
 On EKS this maps to multiple Deployments/Services (or multiple LoadBalancer IPs)
 rather than one all-ports host; on a VPS fleet, one persona per box.

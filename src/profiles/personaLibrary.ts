@@ -8,7 +8,8 @@ export type PersonaGroup =
   | "operations_db"
   | "field_gateway"
   | "plc_controller"
-  | "mail_relay";
+  | "mail_relay"
+  | "cache_node";
 
 export type PersonaFile = {
   path: string;
@@ -444,6 +445,62 @@ const personas: DecoyPersona[] = [
       },
     },
   },
+  {
+    id: "cache-session-01",
+    group: "cache_node",
+    displayName: "Session Cache A",
+    host: "cache-session-01.internal",
+    realm: "Relay Session Cache",
+    description: "Unprotected Redis session/token cache fronting the operations relay.",
+    services: {
+      redis: {
+        banner: "Redis 7.0.15 standalone",
+        usernames: ["default", "relay_cache", "svc_session"],
+        files: [
+          {
+            path: "/etc/redis/redis.conf",
+            contents:
+              "bind 0.0.0.0\nprotected-mode no\nport 6379\ndir /var/lib/redis\ndbfilename dump.rdb\n# requirepass disabled during migration 2026-03",
+            modifiedAt: "2026-03-28T11:20:00Z",
+          },
+        ],
+        deviceState: {
+          role: "master",
+          keys: 8,
+          maxmemory_policy: "noeviction",
+          persistence: "rdb",
+        },
+      },
+    },
+  },
+  {
+    id: "cache-queue-02",
+    group: "cache_node",
+    displayName: "Job Queue Cache B",
+    host: "cache-queue-02.internal",
+    realm: "Archive Job Queue",
+    description: "Redis queue backing nightly archive jobs; left world-reachable after a migration.",
+    services: {
+      redis: {
+        banner: "Redis 7.0.15 standalone",
+        usernames: ["default", "queue_worker", "svc_archive"],
+        files: [
+          {
+            path: "/etc/redis/redis.conf",
+            contents:
+              "bind 0.0.0.0\nprotected-mode no\nport 6379\ndir /var/lib/redis\ndbfilename dump.rdb\nsave 3600 1 300 100 60 10000",
+            modifiedAt: "2026-04-02T04:45:00Z",
+          },
+        ],
+        deviceState: {
+          role: "master",
+          keys: 8,
+          maxmemory_policy: "noeviction",
+          persistence: "rdb",
+        },
+      },
+    },
+  },
 ];
 
 const serviceGroupMap: Record<ResponderServiceName, PersonaGroup> = {
@@ -457,6 +514,7 @@ const serviceGroupMap: Record<ResponderServiceName, PersonaGroup> = {
   modbus: "plc_controller",
   snmp: "plc_controller",
   smtp: "mail_relay",
+  redis: "cache_node",
 };
 
 export function getPersonaGroupForService(service: ResponderServiceName): PersonaGroup {

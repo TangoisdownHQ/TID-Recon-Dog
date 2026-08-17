@@ -60,6 +60,7 @@ function buildTaskDefinition() {
           { name: "RDP_PORT", value: String(config.services.rdp.port) },
           { name: "TELNET_PORT", value: String(config.services.telnet.port) },
           { name: "MODBUS_PORT", value: String(config.services.modbus.port) },
+          { name: "REDIS_PORT", value: String(config.services.redis.port) },
         ],
         mountPoints: [
           {

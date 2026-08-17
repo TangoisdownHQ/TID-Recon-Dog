@@ -132,6 +132,22 @@ const serviceProfiles: Record<string, ServiceProfile> = {
     tags: ["mail", "smtp", "ops"],
     traits: ["ESMTP with AUTH", "rejects AUTH credentials", "queues mail silently"],
   },
+  redis: {
+    service: "REDIS",
+    displayName: "Relay Session Cache",
+    product: "Redis",
+    version: "7.0.15",
+    banner: "Redis 7.0.15 standalone",
+    host: "cache-session-01.internal",
+    realm: "Relay Session Cache",
+    ports: [6379],
+    tags: ["cache", "database", "unauthenticated"],
+    traits: [
+      "no requirepass — accepts unauthenticated commands",
+      "serves credential-bearing keys via GET/KEYS",
+      "accepts CONFIG SET dir and REPLICAOF to capture takeover chains",
+    ],
+  },
 };
 
 export function getServiceProfile(serviceName: string): ServiceProfile {

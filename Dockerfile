@@ -36,7 +36,7 @@ RUN mkdir -p runtime logs uploads && chown -R node:node /app
 
 USER node
 
-EXPOSE 3000 2222 2121 5432 8554 3389 2323 1502 16100/udp 2525 9090
+EXPOSE 3000 2222 2121 5432 8554 3389 2323 1502 16100/udp 2525 6379 9090
 VOLUME ["/app/runtime", "/app/logs", "/app/uploads"]
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 CMD wget -qO- http://127.0.0.1:9090/healthz >/dev/null || exit 1
 

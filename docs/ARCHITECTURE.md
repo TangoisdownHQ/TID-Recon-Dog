@@ -4,7 +4,7 @@
                           ┌──────────────────────────────────────────┐
    attackers / scanners ─▶│  Decoy services (attacker-facing surface)  │
    (internet)             │  http ssh ftp postgres rtsp rdp telnet     │
-                          │  modbus snmp smtp  — per-protocol listeners│
+                          │  modbus snmp smtp redis — per-proto listeners│
                           └───────────────┬────────────────────────────┘
                                           │ every interaction
                           ┌───────────────▼────────────────────────────┐

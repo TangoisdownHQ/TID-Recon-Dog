@@ -16,6 +16,7 @@ services:
       - "1502:1502"
       - "16100:16100/udp"
       - "2525:2525"
+      - "6379:6379"
       # Operator GUI — bound to localhost on the host so it is not exposed.
       - "127.0.0.1:9090:9090"
     environment:
@@ -29,6 +30,7 @@ services:
       - MODBUS_PORT=1502
       - SNMP_PORT=16100
       - SMTP_PORT=2525
+      - REDIS_PORT=6379
       # Bind operator inside the container to all interfaces so the published
       # 127.0.0.1:9090 host port can reach it. Set OPERATOR_TOKEN to pin a token.
       - OPERATOR_HOST=0.0.0.0

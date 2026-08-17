@@ -49,6 +49,10 @@ export const config = {
       host: process.env.SMTP_HOST || "0.0.0.0",
       port: toNumber(process.env.SMTP_PORT, 2525),
     },
+    redis: {
+      host: process.env.REDIS_HOST || "0.0.0.0",
+      port: toNumber(process.env.REDIS_PORT, 6379),
+    },
   },
   operator: {
     // Operator metrics GUI/API. Bind to loopback by default so it is never

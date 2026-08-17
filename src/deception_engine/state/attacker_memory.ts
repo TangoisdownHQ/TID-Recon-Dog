@@ -164,6 +164,16 @@ export function assessInteraction(service: ResponderServiceName, detail: string)
     scoreDelta += 18;
   }
 
+  // Redis takeover primitives: RDB write path, replication hijack, module load,
+  // Lua sandbox escape. Any one of these is an unambiguous compromise attempt.
+  if (
+    service === "redis" &&
+    /config_set (dir|dbfilename)|replicaof|module_load|flushall|flushdb|shutdown|debug/i.test(normalized)
+  ) {
+    intents.add("exploitation");
+    scoreDelta += 22;
+  }
+
   return {
     scoreDelta,
     intents: intents.size === 0 ? ["unknown"] : Array.from(intents),

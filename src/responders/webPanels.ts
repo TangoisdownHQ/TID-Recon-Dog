@@ -330,6 +330,69 @@ function iotDashboard(ctx: ResponderContext, { host }: PanelRenderArgs): string 
 </div></body></html>`;
 }
 
+// 4. phpRedisAdmin-style web console for the decoy Redis cache. Redis itself is
+// TCP, but its web admin UIs (phpRedisAdmin, Redis Commander) are heavily
+// scanned over HTTP — this captures the credential attempt and, on decoy_success,
+// shows a keyspace seeded with the same canary tokens the TCP service serves.
+function redisLogin(ctx: ResponderContext, { host, message, username }: PanelRenderArgs): string {
+  const err = message ? `<p class="err">${esc(message)}</p>` : "";
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>phpRedisAdmin</title>
+<style>
+body{margin:0;min-height:100vh;display:grid;place-items:center;font-family:Arial,Helvetica,sans-serif;background:#f2f2f2;color:#333}
+.box{width:min(340px,calc(100vw - 28px));background:#fff;border:1px solid #ccc;border-radius:3px;padding:22px 24px;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.logo{font-size:1.25rem;font-weight:bold;color:#a41e11;margin:0 0 2px}
+.sub{color:#888;font-size:.75rem;margin-bottom:16px}
+label{display:block;font-size:.78rem;color:#555;margin:10px 0 4px}
+input,select{width:100%;box-sizing:border-box;padding:7px;border:1px solid #bbb;border-radius:2px;font-size:.9rem}
+button{width:100%;margin-top:18px;padding:8px;border:0;border-radius:2px;background:#a41e11;color:#fff;font-weight:bold;cursor:pointer}
+button:hover{background:#c62810}
+.err{background:#fdecea;border:1px solid #f5c2c0;color:#a41e11;padding:7px 9px;border-radius:2px;font-size:.8rem}
+.foot{margin-top:14px;color:#aaa;font-size:.68rem;text-align:center}
+</style></head><body>
+<form class="box" method="POST" action="/redisadmin/login">
+<p class="logo">phpRedisAdmin</p>
+<div class="sub">${esc(host)} &middot; redis 7.0.15</div>
+${err}
+<label for="server">Server</label>
+<select id="server" name="server"><option>${esc(host)}:6379 (0)</option><option>${esc(host)}:6379 (1)</option></select>
+<label for="username">User</label>
+<input id="username" name="username" autocomplete="username" value="${esc(username || "default")}" autofocus />
+<label for="password">Password</label>
+<input id="password" name="password" type="password" autocomplete="current-password" />
+<button type="submit">Log in</button>
+<div class="foot">phpRedisAdmin 1.19.3 &middot; Predis 2.2</div>
+</form></body></html>`;
+}
+
+function redisDashboard(ctx: ResponderContext, { host }: PanelRenderArgs): string {
+  // Same seeded, canary-bearing keys the TCP responder serves, so a GET here is
+  // also a canary "serve" — reuse of these secrets elsewhere is attributed back.
+  const keys: Array<[string, string]> = [
+    ["session:ops:current", '{"user":"ops.relay","node":"' + host + '"}'],
+    ["config:db:dsn", "postgres://relay_ro:Rel4y!Pr0d2026@ops-db.internal:5432/relay"],
+    ["config:aws:key", "AKIA4BACKUPSVC2026"],
+    ["cache:vault:token", "hvs.CAESfakeHONEYPOTvaultTOKENexample"],
+    ["queue:archive:pending", "17"],
+    ["backup:last_run", "2026-08-16T02:00:11Z"],
+  ];
+  const rows = keys
+    .map(([k, v]) => `<tr><td><a>${esc(k)}</a></td><td>string</td><td class="v">${esc(v)}</td></tr>`)
+    .join("");
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8" /><title>phpRedisAdmin &middot; ${esc(host)}</title>
+<style>body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#fff;color:#333;font-size:.86rem}
+.top{background:#a41e11;color:#fff;padding:9px 16px;font-weight:bold}
+.meta{padding:8px 16px;background:#f7f7f7;border-bottom:1px solid #e2e2e2;color:#666;font-size:.76rem}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:7px 16px;border-bottom:1px solid #eee}
+th{background:#fafafa;color:#777;font-size:.72rem;text-transform:uppercase}
+td.v{color:#a41e11;font-family:Consolas,monospace}a{color:#0645ad;text-decoration:none}</style>
+</head><body><div class="top">phpRedisAdmin</div>
+<div class="meta">${esc(host)}:6379 &middot; db0 &middot; 8 keys &middot; redis_version:7.0.15 &middot; used_memory:2.21M</div>
+<table><thead><tr><th>Key</th><th>Type</th><th>Value</th></tr></thead><tbody>${rows}</tbody></table>
+</body></html>`;
+}
+
 export const PANELS: PanelDefinition[] = [
   {
     service: "ADMIN",
@@ -351,5 +414,12 @@ export const PANELS: PanelDefinition[] = [
     fields: ["username", "password"],
     renderLogin: iotLogin,
     renderDashboard: iotDashboard,
+  },
+  {
+    service: "REDIS-WEB",
+    paths: ["/redisadmin", "/redisadmin/login", "/phpRedisAdmin", "/redis-commander", "/redis"],
+    fields: ["server", "username", "password"],
+    renderLogin: redisLogin,
+    renderDashboard: redisDashboard,
   },
 ];

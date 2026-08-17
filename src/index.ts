@@ -8,6 +8,7 @@ import { startTelnetService } from "./services/telnetService.js";
 import { startModbusService } from "./services/modbusService.js";
 import { startSnmpService } from "./services/snmpService.js";
 import { startSmtpService } from "./services/smtpService.js";
+import { startRedisService } from "./services/redisService.js";
 import { initNodeStatus } from "./operator/nodeStatus.js";
 import { formatConsole, readSessionSnapshots } from "./utils/logger.js";
 import {
@@ -46,7 +47,8 @@ type ServiceName =
   | "telnet"
   | "modbus"
   | "snmp"
-  | "smtp";
+  | "smtp"
+  | "redis";
 
 type StartedService = { name: string; host: string; port: number };
 type FailedService = { service: ServiceName; reason: string };
@@ -62,6 +64,7 @@ const starters: Record<ServiceName, () => Promise<{ name: string; host: string; 
   modbus: startModbusService,
   snmp: startSnmpService,
   smtp: startSmtpService,
+  redis: startRedisService,
 };
 
 function allServices() {
@@ -72,7 +75,7 @@ function printUsage() {
   console.log(`TID-Recon-Dog CLI
 
 Usage:
-  node dist/index.js start [all|http|ssh|ftp|postgres|rtsp|rdp|telnet|modbus|snmp|smtp ...]
+  node dist/index.js start [all|http|ssh|ftp|postgres|rtsp|rdp|telnet|modbus|snmp|smtp|redis ...]
   node dist/index.js start tidrecondog
   node dist/index.js sessions
   node dist/index.js attackers

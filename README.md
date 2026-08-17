@@ -17,7 +17,7 @@
 
 # TID-Recon-Dog
 
-**TID-Recon-Dog** is an OSINT-driven deception and cyber-threat-intelligence platform built to **trap, track, and analyze** reconnaissance and malicious intrusions. It exposes believable multi-protocol services (SSH, HTTP, FTP, PostgreSQL, RTSP, RDP, Telnet, Modbus, SNMP, SMTP) backed by deterministic responders and an optional **local AI model** (Qwen3-4B), letting attackers "log in" to a juicy, explorable decoy environment — fake filesystems, admin/IoT/database panels, and camera feeds — while every action is recorded.
+**TID-Recon-Dog** is an OSINT-driven deception and cyber-threat-intelligence platform built to **trap, track, and analyze** reconnaissance and malicious intrusions. It exposes believable multi-protocol services (SSH, HTTP, FTP, PostgreSQL, RTSP, RDP, Telnet, Modbus, SNMP, SMTP, Redis) backed by deterministic responders and an optional **local AI model** (Qwen3-4B), letting attackers "log in" to a juicy, explorable decoy environment — fake filesystems, admin/IoT/database panels, and camera feeds — while every action is recorded.
 
 It keeps **per-attacker memory** across reconnects, scores intent (recon → brute-force → exploitation), and turns observations into **first-party threat intelligence**: extracted IOCs, **MITRE ATT&CK** mapping, and **STIX / MISP / TAXII** exports, with enrichment, dark-web correlation, and SIEM forwarding. An operator console adds live metrics, response playbooks (block / tarpit / decoy / message-injection), a fleet view, and an MLOps loop that retrains the model on captured traffic. Deploy it anywhere — **Docker, Kubernetes (Cilium), or AWS (EC2 / EKS)** via Terraform.
 
@@ -97,7 +97,7 @@ npm run dashboard
 ## CLI Commands
 
 ```sh
-node dist/index.js start [all|http|ssh|ftp|postgres|rtsp|rdp|telnet|modbus|snmp|smtp ...]
+node dist/index.js start [all|http|ssh|ftp|postgres|rtsp|rdp|telnet|modbus|snmp|smtp|redis ...]
 node dist/index.js start tidrecondog
 node dist/index.js sessions
 node dist/index.js attackers
@@ -149,9 +149,13 @@ a fake authenticated dashboard.
 | Admin console | OpsCenter Appliance Manager | `/admin`, `/admin/login`, `/administrator`, `/manager`, `/login` |
 | Database web client | Adminer 4.8.1 (PostgreSQL) | `/adminer.php`, `/adminer`, `/pgadmin`, `/phpmyadmin`, `/db` |
 | IoT gateway | Fieldline FG-2200 gateway | `/gateway`, `/gateway/login`, `/device`, `/iot`, `/cgi-bin/luci` |
+| Redis web console | phpRedisAdmin 1.19.3 | `/redisadmin`, `/redisadmin/login`, `/phpRedisAdmin`, `/redis-commander`, `/redis` |
 
-Operator-facing service tags: `ADMIN`, `DB-WEB`, `IOT` (memory normalizes them
-to the `http` service). Defined in `src/responders/webPanels.ts`.
+Operator-facing service tags: `ADMIN`, `DB-WEB`, `IOT`, `REDIS-WEB` (memory
+normalizes them to the `http` service). Defined in `src/responders/webPanels.ts`.
+The Redis console's `decoy_success` dashboard leaks the same canary-bearing
+keyspace the [Redis TCP service](#services) serves, so reuse of those secrets on
+any other service is attributed back to the reader.
 
 ## Operator Metrics Console (Web GUI)
 
@@ -241,8 +245,16 @@ The runtime path no longer depends on `src/ai_agents`. Each service now calls a 
 | modbus   | 1502        | TCP      | plc_controller  |
 | snmp     | 16100       | UDP      | plc_controller  |
 | smtp     | 2525        | TCP      | mail_relay      |
+| redis    | 6379        | TCP/RESP | cache_node      |
 
 Override any port with the matching env var: `SNMP_PORT=161 SMTP_PORT=25 npm start`.
+
+The `redis` service emulates an **unauthenticated** Redis 7.0.15 (`protected-mode
+no`, no `requirepass`) — the exact condition mass scanners hunt. It speaks RESP
+(and bare inline commands), serves a canary-seeded keyspace via `GET`/`KEYS`, and
+accepts the full takeover chain (`CONFIG SET dir` + `SET` + `SAVE`, `REPLICAOF`,
+`MODULE LOAD`, Lua sandbox escapes) so those attempts are captured verbatim and
+scored as `exploitation`.
 
 ## Environment Variables
 

@@ -167,7 +167,13 @@ export async function startOperatorServer(): Promise<OperatorServerHandle> {
     res.json(await buildFeed(limit));
   });
 
-  app.get("/api/attackers", async (_req, res) => {
+  app.get("/api/attackers", async (req, res) => {
+    // scope=fleet delegates to the aggregated fleet view so this endpoint can't
+    // silently return master-only data when a caller asks for the whole fleet.
+    if (req.query.scope === "fleet") {
+      res.json(await fleetAttackers());
+      return;
+    }
     const attackers = await listAttackers();
     res.json(
       attackers
